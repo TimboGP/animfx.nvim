@@ -39,6 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   one another mid-animation.
 - `delegate` now warns once (via `vim.notify`) when the module loads but the
   `fn` path isn't callable, instead of silently doing nothing.
+- Animated effects (`line_flash` fade, `cursor_beacon`) now cancel their
+  repeating timers on `VimLeavePre`, so none leak or fire a callback into a
+  closing Neovim.
 
 ## [0.1.0] - 2026-07-03
 

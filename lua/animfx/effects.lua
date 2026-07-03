@@ -24,6 +24,33 @@ end
 -- concurrent fades with different colors don't overwrite one another.
 local fade_seq = 0
 
+-- Repeating animation timers, tracked so any still in flight can be cancelled
+-- on exit rather than leaking or firing a callback into a closing Neovim.
+local active_timers = {}
+
+local function managed_timer()
+  local timer = vim.uv.new_timer()
+  active_timers[timer] = true
+  return timer
+end
+
+local function release_timer(timer)
+  if timer and not timer:is_closing() then
+    timer:stop()
+    timer:close()
+  end
+  active_timers[timer] = nil
+end
+
+vim.api.nvim_create_autocmd("VimLeavePre", {
+  group = vim.api.nvim_create_augroup("animfx_effects_cleanup", { clear = true }),
+  callback = function()
+    for timer in pairs(active_timers) do
+      pcall(release_timer, timer)
+    end
+  end,
+})
+
 -- Linear-interpolate two 24-bit colors; alpha 1 = a, 0 = b.
 local function blend(a, b, alpha)
   local function ch(c, shift)
@@ -95,15 +122,14 @@ function M.line_flash(opts)
     local fid = fade_seq
     local frame = 0
     local interval = math.max(1, math.floor(ms / steps))
-    local timer = vim.uv.new_timer()
+    local timer = managed_timer()
     timer:start(
       interval,
       interval,
       vim.schedule_wrap(function()
         frame = frame + 1
         if frame >= steps or not vim.api.nvim_buf_is_valid(buf) then
-          timer:stop()
-          timer:close()
+          release_timer(timer)
           if vim.api.nvim_buf_is_valid(buf) then
             pcall(vim.api.nvim_buf_del_extmark, buf, ns, id)
           end
@@ -196,15 +222,14 @@ function M.cursor_beacon(opts)
 
     local frame = 0
     local interval = math.max(1, math.floor(ms / steps))
-    local timer = vim.uv.new_timer()
+    local timer = managed_timer()
     timer:start(
       interval,
       interval,
       vim.schedule_wrap(function()
         frame = frame + 1
         if frame >= steps or not vim.api.nvim_win_is_valid(win) then
-          timer:stop()
-          timer:close()
+          release_timer(timer)
           if vim.api.nvim_win_is_valid(win) then
             pcall(vim.api.nvim_win_close, win, true)
           end
@@ -290,6 +315,12 @@ function M.notify_toast(opts)
     end
     notify(msg, level, vim.tbl_extend("force", { animate = true }, opts))
   end
+end
+
+--- Test hook: number of live managed animation timers.
+---@return integer
+function M._active_timers()
+  return vim.tbl_count(active_timers)
 end
 
 return M

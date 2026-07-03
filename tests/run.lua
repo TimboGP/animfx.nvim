@@ -288,6 +288,16 @@ do
   check("effects: Delegate to an external backend", "delegate warns once on an uncallable target", warns == 1)
 end
 
+do
+  -- A long fade leaves a repeating timer live; VimLeavePre must cancel it.
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "x" })
+  effects.line_flash({ hl = "IncSearch", fade = true, steps = 50, duration = 5000 })({ buf = buf, line = 0 })
+  check("effects: Animation timers are cancelled on exit", "fade registers a live timer", effects._active_timers() >= 1)
+  vim.api.nvim_exec_autocmds("VimLeavePre", {})
+  check("effects: Animation timers are cancelled on exit", "VimLeavePre cancels active timers", effects._active_timers() == 0)
+end
+
 -- combinators -------------------------------------------------------------
 do
   local seen = {}

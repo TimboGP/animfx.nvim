@@ -72,6 +72,18 @@ out-of-range line never raises an error.
 - THEN it does not raise
 - AND a sign extmark is placed on the buffer's last line
 
+### Requirement: Animation timers are cancelled on exit
+The system SHALL track the repeating timers created by animated effects
+(`line_flash` fade and `cursor_beacon`) and cancel any still running when
+`VimLeavePre` fires, so no timer callback runs into a closing Neovim and no
+libuv timer leaks.
+
+#### Scenario: In-flight timers stop on exit
+- GIVEN an animation whose repeating timer is still running
+- WHEN `VimLeavePre` fires
+- THEN the timer is stopped and closed
+- AND no tracked timers remain
+
 ### Requirement: Cursor beacon
 The system SHALL provide `cursor_beacon(opts)` that opens a small floating
 window at the cursor and fades it out over `steps` frames before closing it,
