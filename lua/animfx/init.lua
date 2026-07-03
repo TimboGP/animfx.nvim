@@ -13,6 +13,10 @@ local M = {}
 -- that registered before the reload.
 local augroup = vim.api.nvim_create_augroup("animfx", { clear = false })
 
+-- Bounded ring buffer of recent emits, for debugging "did my event fire?".
+local TRACE_MAX = 100
+local trace = {}
+
 --- Register an effect against an event name.
 ---
 --- Multiple effects may be registered for the same event; each becomes its own
@@ -52,7 +56,30 @@ end
 ---@param data? table  Arbitrary payload passed through to each effect.
 function M.emit(event, data)
   assert(type(event) == "string", "animfx.emit: event must be a string")
+
+  trace[#trace + 1] = { event = event, at = os.time() }
+  if #trace > TRACE_MAX then
+    table.remove(trace, 1)
+  end
+
   vim.api.nvim_exec_autocmds("User", { pattern = event, data = data or {} })
+end
+
+--- Introspect registrations: a map of event name → number of effects bound.
+--- Reads back the live `User` autocmds in animfx's augroup.
+---@return table<string, integer>
+function M.list()
+  local counts = {}
+  for _, au in ipairs(vim.api.nvim_get_autocmds({ group = augroup, event = "User" })) do
+    counts[au.pattern] = (counts[au.pattern] or 0) + 1
+  end
+  return counts
+end
+
+--- Recent emits (oldest first), for debugging. Each entry: { event, at }.
+---@return { event: string, at: integer }[]
+function M.history()
+  return vim.deepcopy(trace)
 end
 
 return M

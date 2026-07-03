@@ -153,6 +153,27 @@ do
   check("throttle fires again after the window", ran == 2)
 end
 
+-- introspection: list() counts effects per event -------------------------
+do
+  animfx.on("TestListEv", function() end)
+  animfx.on("TestListEv", function() end)
+  local list = animfx.list()
+  check("list() counts effects per event", list["TestListEv"] == 2)
+end
+
+-- introspection: history() records emits ----------------------------------
+do
+  animfx.emit("TestHistEv", {})
+  local hist = animfx.history()
+  local found = false
+  for _, e in ipairs(hist) do
+    if e.event == "TestHistEv" then
+      found = true
+    end
+  end
+  check("history() records the emit", found)
+end
+
 print(("\n%s (%d failure%s)"):format(failed == 0 and "PASS" or "FAILED", failed, failed == 1 and "" or "s"))
 if failed > 0 then
   os.exit(1)

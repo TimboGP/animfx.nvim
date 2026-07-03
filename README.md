@@ -68,7 +68,24 @@ animfx.emit(event, data)      -- data: arbitrary table, passed to each effect
 
 --- Unregister by the id returned from on().
 animfx.off(id)
+
+--- Introspect: map of event name → number of effects registered.
+animfx.list()
+
+--- Recent emits (bounded ring buffer), oldest first: { event, at }.
+animfx.history()
 ```
+
+### Commands
+
+Because it rides `User` autocmds, registrations are visible with `:au User` —
+plus these helpers for exercising and inspecting effects without editing config:
+
+| Command | Does |
+|---|---|
+| `:AnimfxList` | List registered events and their effect counts |
+| `:AnimfxEmit <Event>` | Fire an event by name (empty payload); completes on registered events |
+| `:AnimfxHistory` | Show recent emits with timestamps |
 
 ## Effects
 
