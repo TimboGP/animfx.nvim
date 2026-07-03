@@ -100,5 +100,15 @@ one.
 ## Pull requests
 
 - Keep specs, implementation, and tests in the same PR.
-- CI must be green: it runs `make test` (with the coverage gate) on Neovim
-  stable and nightly.
+- CI must be green: it runs `make test` (with the coverage gate) and the
+  backend-integration suite on Neovim stable and nightly.
+- Add a note under `## [Unreleased]` in `CHANGELOG.md`.
+
+## Releasing
+
+1. Move the `## [Unreleased]` entries into a new `## [x.y.z] - YYYY-MM-DD`
+   section and update the compare/link references at the bottom.
+2. Commit, then tag: `git tag -a vX.Y.Z -m "vX.Y.Z" && git push --follow-tags`.
+3. The `release` workflow fires on the `v*` tag, extracts that version's
+   changelog section, and publishes a GitHub release from it. No manual
+   `gh release create` needed.
