@@ -103,9 +103,37 @@ local fx = require("animfx.effects")
 fx.line_flash({ hl = "IncSearch", duration = 150, fade = true, steps = 8 })
 --   data: { buf?, line? }  — defaults to current buffer / cursor line
 
+-- Gutter sign flash — visible even when the line is scrolled off-screen.
+fx.sign_flash({ text = "▐", hl = "IncSearch", duration = 300 })
+--   data: { buf?, line? }
+
+-- Cursor pulse — a small floating window that fades out. Dependency-free:
+-- the same visual as pulsar/beacon, driven from this registry.
+fx.cursor_beacon({ hl = "Search", width = 10, duration = 220 })
+--   data: {}  (positions at the cursor)
+
 -- Animated toast via nvim-notify (falls back to vim.notify if absent).
 fx.notify_toast({ title = "Harpoon", timeout = 2000 })
 --   data: { msg?, level? }  — opts are merged over { animate = true }
+```
+
+### Delegating to other engines
+
+`fx.delegate` wraps any other plugin's function as an animfx effect, degrading
+gracefully when it isn't installed. This is the "composes, doesn't compete"
+claim made concrete — one registry drives every backend:
+
+```lua
+-- Fire pulsar.nvim's pulse from the registry (no-op if pulsar isn't present).
+animfx.on("CursorLanded", fx.delegate({ module = "pulsar", fn = "pulse" }))
+
+-- Or delegate with custom args and a fallback.
+animfx.on("BigJump", fx.delegate({
+  module = "mini.animate",
+  fn = "animate",
+  args = function(data) return { data.steps, data.timing } end,
+  fallback = fx.cursor_beacon({ hl = "Search" }),  -- used if mini.animate is absent
+}))
 ```
 
 ## Combinators

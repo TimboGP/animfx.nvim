@@ -216,6 +216,62 @@ do
   check("fade cleans up its extmark", #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0)
 end
 
+-- effects: sign_flash places then clears a sign extmark ------------------
+do
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "one", "two" })
+  local ns = vim.api.nvim_create_namespace("animfx_sign_flash")
+  effects.sign_flash({ duration = 10 })({ buf = buf, line = 0 })
+  local placed = #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {})
+  vim.wait(80, function()
+    return #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0
+  end)
+  check("sign_flash places then clears a sign", placed == 1 and #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0)
+end
+
+-- effects: cursor_beacon opens then closes a float ------------------------
+do
+  local function floats()
+    local n = 0
+    for _, w in ipairs(vim.api.nvim_list_wins()) do
+      if vim.api.nvim_win_get_config(w).relative ~= "" then
+        n = n + 1
+      end
+    end
+    return n
+  end
+  local before = floats()
+  effects.cursor_beacon({ duration = 30, steps = 3 })({})
+  check("cursor_beacon opens a floating window", floats() == before + 1)
+  vim.wait(120, function()
+    return floats() == before
+  end)
+  check("cursor_beacon closes the float", floats() == before)
+end
+
+-- effects: delegate falls back when module is missing ---------------------
+do
+  local fellback = false
+  effects.delegate({
+    module = "definitely_not_a_real_module_xyz",
+    fallback = function()
+      fellback = true
+    end,
+  })({})
+  check("delegate falls back when module absent", fellback)
+end
+
+-- effects: delegate calls the target when present -------------------------
+do
+  package.loaded["animfx_fake_backend"] = {
+    boom = function(d)
+      _G.__animfx_delegate_arg = d.v
+    end,
+  }
+  effects.delegate({ module = "animfx_fake_backend", fn = "boom" })({ v = 7 })
+  check("delegate calls the resolved target", _G.__animfx_delegate_arg == 7)
+end
+
 print(("\n%s (%d failure%s)"):format(failed == 0 and "PASS" or "FAILED", failed, failed == 1 and "" or "s"))
 if failed > 0 then
   os.exit(1)
