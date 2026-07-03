@@ -63,8 +63,10 @@ local animfx = require("animfx")
 --- effect is caught and reported, never blocking the others.
 animfx.on(event, effect_fn)   -- effect_fn: function(data) ... end
 
---- Fire an event. Every effect registered for it runs synchronously.
-animfx.emit(event, data)      -- data: arbitrary table, passed to each effect
+--- Fire an event. Effects run synchronously by default; pass
+--- { schedule = true } to run them on the next tick so a slow effect
+--- never blocks the keymap that emitted.
+animfx.emit(event, data, opts)  -- data: arbitrary table; opts: { schedule? }
 
 --- Unregister by the id returned from on().
 animfx.off(id)
@@ -96,7 +98,9 @@ returns a `function(data)` ready for `animfx.on`.
 local fx = require("animfx.effects")
 
 -- Full-line highlight flash, auto-clears after `duration` ms.
-fx.line_flash({ hl = "IncSearch", duration = 150 })
+-- With fade = true it steps the background toward Normal instead of a
+-- hard clear — a real fade-out.
+fx.line_flash({ hl = "IncSearch", duration = 150, fade = true, steps = 8 })
 --   data: { buf?, line? }  — defaults to current buffer / cursor line
 
 -- Animated toast via nvim-notify (falls back to vim.notify if absent).

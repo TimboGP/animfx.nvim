@@ -174,6 +174,48 @@ do
   check("history() records the emit", found)
 end
 
+-- hardening: emit { schedule = true } defers to the next tick -------------
+do
+  local ran = false
+  animfx.on("TestSched", function()
+    ran = true
+  end)
+  animfx.emit("TestSched", {}, { schedule = true })
+  check("scheduled emit does not run synchronously", ran == false)
+  vim.wait(50, function()
+    return ran
+  end)
+  check("scheduled emit runs on the next tick", ran == true)
+end
+
+-- hardening: rapid flashes leave no extmarks behind (leak check) ----------
+do
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "x", "y", "z" })
+  local ns = vim.api.nvim_create_namespace("animfx_line_flash")
+  local flash = effects.line_flash({ hl = "IncSearch", duration = 10 })
+  for _ = 1, 200 do
+    flash({ buf = buf, line = 0 })
+  end
+  vim.wait(120, function()
+    return #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0
+  end)
+  local left = #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {})
+  check("200 rapid flashes leave zero extmarks", left == 0)
+end
+
+-- hardening: fade also cleans up its extmark ------------------------------
+do
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "a", "b" })
+  local ns = vim.api.nvim_create_namespace("animfx_line_flash")
+  effects.line_flash({ hl = "IncSearch", duration = 40, fade = true, steps = 4 })({ buf = buf, line = 0 })
+  vim.wait(200, function()
+    return #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0
+  end)
+  check("fade cleans up its extmark", #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0)
+end
+
 print(("\n%s (%d failure%s)"):format(failed == 0 and "PASS" or "FAILED", failed, failed == 1 and "" or "s"))
 if failed > 0 then
   os.exit(1)

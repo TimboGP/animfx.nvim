@@ -51,10 +51,15 @@ function M.off(id)
   pcall(vim.api.nvim_del_autocmd, id)
 end
 
---- Fire an event; every effect registered for it runs synchronously.
----@param event string Event name.
----@param data? table  Arbitrary payload passed through to each effect.
-function M.emit(event, data)
+--- Fire an event; every effect registered for it runs.
+---
+--- Effects run synchronously by default, so a slow effect blocks whatever
+--- emitted (usually a keymap). Pass `{ schedule = true }` to run them on the
+--- next event-loop tick instead, decoupling the UI feedback from the action.
+---@param event string  Event name.
+---@param data? table   Arbitrary payload passed through to each effect.
+---@param opts? { schedule?: boolean }
+function M.emit(event, data, opts)
   assert(type(event) == "string", "animfx.emit: event must be a string")
 
   trace[#trace + 1] = { event = event, at = os.time() }
@@ -62,7 +67,14 @@ function M.emit(event, data)
     table.remove(trace, 1)
   end
 
-  vim.api.nvim_exec_autocmds("User", { pattern = event, data = data or {} })
+  local fire = function()
+    vim.api.nvim_exec_autocmds("User", { pattern = event, data = data or {} })
+  end
+  if opts and opts.schedule then
+    vim.schedule(fire)
+  else
+    fire()
+  end
 end
 
 --- Introspect registrations: a map of event name → number of effects bound.
