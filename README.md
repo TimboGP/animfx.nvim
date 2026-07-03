@@ -1,5 +1,7 @@
 # animfx.nvim
 
+[![test](https://github.com/TimboGP/animfx.nvim/actions/workflows/test.yml/badge.svg)](https://github.com/TimboGP/animfx.nvim/actions/workflows/test.yml)
+
 Event-triggered animation registry for Neovim. Decouples *"something happened"*
 from *"what visual effect plays."* Call sites emit named events; effects
 register against event names independently.
@@ -48,7 +50,7 @@ happens** — applied to UI feedback instead of tool gating.
 `lazy.nvim`:
 
 ```lua
-{ "TimboGP/animfx.nvim" }
+{ "TimboGP/animfx.nvim", version = "*" }  -- pin to tagged releases
 ```
 
 No `opts`/`setup()` — it's a library. `require` it where you wire things up.
@@ -227,8 +229,12 @@ builds the expression string for you.
 ```
 
 ```sh
-nvim -l tests/run.lua   # headless, no plenary; exits non-zero on failure
+make test        # headless suite (nvim -l tests/run.lua); non-zero on failure
+make fmt         # stylua format
+make lint        # luacheck
 ```
+
+CI runs the suite on Neovim stable and nightly.
 
 ## Design notes
 
