@@ -226,6 +226,7 @@ builds the expression string for you.
 
 ```vim
 :checkhealth animfx
+:help animfx      " full reference (doc/animfx.txt)
 ```
 
 ```sh

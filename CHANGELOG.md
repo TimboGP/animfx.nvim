@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `animfx.DelegateSpec` class.
 - `animfx.clear(event)` removes all effects for an event, or every animfx
   registration when called with no argument.
+- Vim help documentation (`:help animfx`, `doc/animfx.txt`).
 
 ### Changed
 - The unit suite now runs with `nvim --clean` so results don't depend on the

@@ -1,0 +1,155 @@
+*animfx.txt*                          Event-triggered animation registry
+
+==============================================================================
+CONTENTS                                                    *animfx-contents*
+
+  1. Introduction ........................... |animfx-introduction|
+  2. API .................................... |animfx-api|
+  3. Effects ................................ |animfx-effects|
+  4. Combinators ............................ |animfx-combinators|
+  5. Commands ............................... |animfx-commands|
+  6. Cross-layer events ..................... |animfx-remote|
+  7. Health ................................. |animfx-health|
+
+==============================================================================
+1. INTRODUCTION                                         *animfx-introduction*
+
+                                                                     *animfx*
+animfx decouples "something happened" from "what visual effect plays". Call
+sites emit named events; effects register against event names independently.
+
+It rides on Neovim's built-in |User| autocmd, so registrations stay
+introspectable with `:au User` and interoperate with any other `User`
+listener. Effects are `function(data)`; each is pcall-isolated, so one failing
+effect never blocks the others.
+
+Example: >lua
+    local animfx = require("animfx")
+    local fx = require("animfx.effects")
+
+    animfx.on("HarpoonAdd", fx.line_flash({ hl = "IncSearch" }))
+
+    vim.keymap.set("n", "<leader>H", function()
+      require("harpoon"):list():add()
+      animfx.emit("HarpoonAdd", { msg = "Added " .. vim.fn.expand("%:t") })
+    end)
+<
+==============================================================================
+2. API                                                          *animfx-api*
+
+Access via `require("animfx")`.
+
+on({event}, {effect})                                          *animfx.on()*
+    Register {effect} (a `function(data)`) against {event}. Multiple effects
+    per event run in registration order. Returns an autocmd id for |animfx.off()|.
+
+emit({event} [, {data} [, {opts}]])                          *animfx.emit()*
+    Fire {event}; every registered effect runs, each receiving {data} (an
+    arbitrary table, default `{}`). Effects run synchronously unless {opts}
+    is `{ schedule = true }`, which defers them to the next tick so a slow
+    effect never blocks the emitting keymap.
+
+off({id})                                                     *animfx.off()*
+    Remove a single registration by the id returned from |animfx.on()|.
+
+clear([{event}])                                            *animfx.clear()*
+    Remove all effects for {event}, or every animfx registration when called
+    with no argument. Only affects registrations made through animfx.
+
+list()                                                       *animfx.list()*
+    Return a map of event name to the number of effects registered for it.
+
+history()                                                 *animfx.history()*
+    Return recent emits (oldest first, bounded to 100), each `{ event, at }`.
+
+==============================================================================
+3. EFFECTS                                                  *animfx-effects*
+
+Constructors in `require("animfx.effects")`. Each takes an `opts` table and
+returns a `function(data)` ready for |animfx.on()|.
+
+line_flash({opts})                              *animfx.effects.line_flash()*
+    Flash a full-line highlight, clearing after `opts.duration` ms (default
+    150, highlight `opts.hl` default "IncSearch"). With `opts.fade = true` the
+    background steps toward Normal over `opts.steps` frames instead of a hard
+    clear. `data`: `{ buf?, line? }` (defaults: current buffer / cursor line;
+    an out-of-range line is clamped).
+
+sign_flash({opts})                              *animfx.effects.sign_flash()*
+    Flash a gutter sign (`opts.text` default "▐"), visible even when the line
+    is off-screen. `data`: `{ buf?, line? }`.
+
+cursor_beacon({opts})                        *animfx.effects.cursor_beacon()*
+    A pulse at the cursor: a small floating window that fades out.
+    Dependency-free. `data`: `{}`.
+
+notify_toast({opts})                          *animfx.effects.notify_toast()*
+    Animated toast via nvim-notify, falling back to |vim.notify()| when it is
+    not installed. `opts` is merged over `{ animate = true }`. `data`:
+    `{ msg?, level? }`.
+
+delegate({spec})                                  *animfx.effects.delegate()*
+    Wrap another plugin's function as an effect, degrading gracefully when it
+    is not installed. {spec}: >lua
+        { module = "pulsar", fn = "pulse",
+          args = function(data) return { ... } end,  -- default { data }
+          fallback = function(data) ... end }         -- if module absent
+<   If the module loads but the `fn` path is not callable, it warns once.
+
+==============================================================================
+4. COMBINATORS                                          *animfx-combinators*
+
+Compose effects with `require("animfx.combinators")`. Each takes effect
+function(s) and returns a new `function(data)`, so they nest freely.
+
+    chain(...)          Run effects in sequence, same data.
+    delay(ms, effect)   Defer by `ms`.
+    debounce(ms, effect) Trailing edge: one call after a burst, last data.
+    throttle(ms, effect) Leading edge: fire, then ignore for `ms`.
+    only_if(pred, effect) Run only when `pred(data)` is truthy.
+    once(effect)        Run at most once.
+
+Example: debounce a rapid Harpoon-add so it flashes once when the dust
+settles: >lua
+    local c = require("animfx.combinators")
+    animfx.on("HarpoonAdd", c.debounce(200, fx.line_flash({ hl = "IncSearch" })))
+<
+==============================================================================
+5. COMMANDS                                                *animfx-commands*
+
+                                                                 *:AnimfxList*
+:AnimfxList             List registered events and their effect counts.
+
+                                                                 *:AnimfxEmit*
+:AnimfxEmit {event}     Fire {event} with an empty payload. Completes on
+                        registered event names. Handy for testing effects.
+
+                                                              *:AnimfxHistory*
+:AnimfxHistory          Show recent emits with timestamps.
+
+==============================================================================
+6. CROSS-LAYER EVENTS                                        *animfx-remote*
+
+`require("animfx.remote")` lets external processes emit into a running Neovim
+over its RPC socket — a sink for window-manager / multiplexer events.
+
+serve({opts})                                              *animfx.remote.serve()*
+    Ensure Neovim is listening and return the address. `opts.address` forces
+    a named socket; otherwise reuse `v:servername` or start a new server.
+
+remote_expr({event} [, {data}])                      *animfx.remote.remote_expr()*
+    Build the `luaeval` expression for an external
+    `nvim --server ... --remote-expr` call. {data} travels as JSON, decoded
+    Lua-side, so callers never write Vim dict syntax.
+
+Ready-to-wire AeroSpace and tmux hook scripts live in the plugin's
+`examples/` directory.
+
+==============================================================================
+7. HEALTH                                                    *animfx-health*
+
+Run `:checkhealth animfx` to confirm the core is loaded and whether
+nvim-notify is available (affecting whether |animfx.effects.notify_toast()|
+animates).
+
+vim:tw=78:ts=8:et:ft=help:norl:

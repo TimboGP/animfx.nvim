@@ -1,4 +1,4 @@
-.PHONY: test test-integration fmt fmt-check lint typecheck
+.PHONY: test test-integration fmt fmt-check lint typecheck docs
 
 # Headless unit suite (--clean so results don't depend on the user's config).
 test:
@@ -24,3 +24,7 @@ lint:
 # Type-check LuaCATS annotations (requires lua-language-server on PATH).
 typecheck:
 	lua-language-server --check . --checklevel=Warning --logpath=.luals-log
+
+# Regenerate help tags from doc/animfx.txt.
+docs:
+	nvim --clean --headless -c "helptags doc" -c "qa"
