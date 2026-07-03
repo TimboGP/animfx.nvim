@@ -225,12 +225,13 @@ end
 ---   fx.delegate({ module = "mini.animate", fn = "animate",
 ---                 args = function(data) return { data.steps, data.timing } end })
 ---
----@param spec { module: string, fn?: string, args?: fun(data: table): any[], fallback?: fun(data: table) }
----  module   Module to require.
----  fn       Dot-path to the callable within the module; omit if the module
----           itself is callable.
----  args     Build the argument list from `data` (default: { data }).
----  fallback Called with `data` when the module isn't available.
+---@class animfx.DelegateSpec
+---@field module string Module to require.
+---@field fn? string Dot-path to the callable within the module; omit if the module itself is callable.
+---@field args? fun(data: table): any[] Build the argument list from `data` (default: `{ data }`).
+---@field fallback? fun(data: table) Called with `data` when the module isn't available.
+---
+---@param spec animfx.DelegateSpec
 ---@return fun(data: table)
 function M.delegate(spec)
   assert(type(spec) == "table" and type(spec.module) == "string", "delegate: spec.module required")

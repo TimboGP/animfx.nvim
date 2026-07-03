@@ -39,3 +39,21 @@ jobs:
         run: make test-integration
         env:
           NVIM: ${{ steps.vim.outputs.executable }}
+
+  typecheck:
+    runs-on: ubuntu-latest
+    env:
+      LUALS_VERSION: 3.18.2
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install lua-language-server
+        run: |
+          url="https://github.com/LuaLS/lua-language-server/releases/download/${LUALS_VERSION}/lua-language-server-${LUALS_VERSION}-linux-x64.tar.gz"
+          mkdir -p "$HOME/luals"
+          curl -sSL "$url" | tar -xz -C "$HOME/luals"
+          echo "$HOME/luals/bin" >> "$GITHUB_PATH"
+
+      - name: Type-check (LuaCATS annotations)
+        # --check exits non-zero when it finds problems at the given level.
+        run: lua-language-server --check . --checklevel=Warning --logpath="$RUNNER_TEMP/luals"

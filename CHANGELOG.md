@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   health check.
 - This changelog and a release workflow that cuts a GitHub release from the
   matching changelog section on tag push.
+- lua-language-server type-checking of the LuaCATS annotations (`.luarc.json`,
+  `make typecheck`, CI job); `delegate`'s spec is now a typed
+  `animfx.DelegateSpec` class.
 
 ### Changed
 - The unit suite now runs with `nvim --clean` so results don't depend on the

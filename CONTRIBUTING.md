@@ -113,6 +113,10 @@ just automates the propose → apply → archive loop.
 
 - `stylua` for formatting (`stylua.toml`), `luacheck` for linting
   (`.luacheckrc`). Run `make fmt lint` before opening a PR.
+- LuaCATS annotations are type-checked with `lua-language-server`
+  (`.luarc.json`). CI runs `lua-language-server --check` at Warning level and
+  fails on any problem, so keep `---@param` / `---@class` annotations accurate.
+  Run `make typecheck` locally if you have luals installed.
 - Effects are `function(data)`; constructors take `opts` and return one.
 - Effect execution is `pcall`-isolated — never let one effect's failure block
   another.

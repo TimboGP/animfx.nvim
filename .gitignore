@@ -1,6 +1,6 @@
 # Lua / Neovim
 *.luac
-.luarc.json
+.luals-log/
 
 # OS
 .DS_Store

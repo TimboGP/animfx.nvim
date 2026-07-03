@@ -1,4 +1,4 @@
-.PHONY: test test-integration fmt fmt-check lint
+.PHONY: test test-integration fmt fmt-check lint typecheck
 
 # Headless unit suite (--clean so results don't depend on the user's config).
 test:
@@ -20,3 +20,7 @@ fmt-check:
 # Static analysis (requires luacheck).
 lint:
 	luacheck lua/ plugin/
+
+# Type-check LuaCATS annotations (requires lua-language-server on PATH).
+typecheck:
+	lua-language-server --check . --checklevel=Warning --logpath=.luals-log
