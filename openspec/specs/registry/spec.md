@@ -67,6 +67,23 @@ returned from `animfx.on`.
 - WHEN `animfx.off(id)` is called and `"E"` is emitted
 - THEN the effect does not run
 
+### Requirement: Clear registrations
+The system SHALL provide `animfx.clear(event)` that removes all effects
+registered for `event`, or, when called with no argument, all animfx
+registrations. It affects only registrations made through animfx, not other
+`User` autocmds.
+
+#### Scenario: Clear one event
+- GIVEN two effects registered for `"E"` and one for `"F"`
+- WHEN `animfx.clear("E")` is called
+- THEN `animfx.list()` no longer lists `"E"`
+- AND `"F"` remains registered
+
+#### Scenario: Clear everything
+- GIVEN effects registered for several events
+- WHEN `animfx.clear()` is called with no argument
+- THEN `animfx.list()` is empty
+
 ### Requirement: Synchronous by default, optionally scheduled
 The system SHALL run effects synchronously by default so callers observe them
 before `emit` returns, and SHALL defer them to the next event-loop tick when

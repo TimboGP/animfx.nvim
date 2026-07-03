@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - lua-language-server type-checking of the LuaCATS annotations (`.luarc.json`,
   `make typecheck`, CI job); `delegate`'s spec is now a typed
   `animfx.DelegateSpec` class.
+- `animfx.clear(event)` removes all effects for an event, or every animfx
+  registration when called with no argument.
 
 ### Changed
 - The unit suite now runs with `nvim --clean` so results don't depend on the

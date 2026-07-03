@@ -51,6 +51,18 @@ function M.off(id)
   pcall(vim.api.nvim_del_autocmd, id)
 end
 
+--- Remove all effects for `event`, or every animfx registration when called
+--- with no argument. Only touches registrations made through animfx.
+---@param event? string Event name; omit to clear all.
+function M.clear(event)
+  local opts = { group = augroup, event = "User" }
+  if event ~= nil then
+    assert(type(event) == "string", "animfx.clear: event must be a string or nil")
+    opts.pattern = event
+  end
+  vim.api.nvim_clear_autocmds(opts)
+end
+
 --- Fire an event; every effect registered for it runs.
 ---
 --- Effects run synchronously by default, so a slow effect blocks whatever

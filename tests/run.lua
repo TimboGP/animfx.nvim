@@ -113,6 +113,21 @@ do
   check("registry: Interoperate with User autocmds", "external User listener receives the emit", fired)
 end
 
+do
+  animfx.on("TestClearE", function() end)
+  animfx.on("TestClearE", function() end)
+  animfx.on("TestClearF", function() end)
+  animfx.clear("TestClearE")
+  local after = animfx.list()
+  check(
+    "registry: Clear registrations",
+    "clear(event) removes only that event",
+    after["TestClearE"] == nil and after["TestClearF"] == 1
+  )
+  animfx.clear()
+  check("registry: Clear registrations", "clear() removes all registrations", next(animfx.list()) == nil)
+end
+
 -- effects -----------------------------------------------------------------
 do
   local buf = vim.api.nvim_create_buf(false, true)
