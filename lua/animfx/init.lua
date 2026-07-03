@@ -14,8 +14,10 @@ local M = {}
 local augroup = vim.api.nvim_create_augroup("animfx", { clear = false })
 
 -- Bounded ring buffer of recent emits, for debugging "did my event fire?".
+-- Fixed slots written round-robin so recording is O(1) (no array shift).
 local TRACE_MAX = 100
 local trace = {}
+local trace_count = 0 -- total emits; write slot derives from this
 
 --- Register an effect against an event name.
 ---
@@ -74,10 +76,8 @@ end
 function M.emit(event, data, opts)
   assert(type(event) == "string", "animfx.emit: event must be a string")
 
-  trace[#trace + 1] = { event = event, at = os.time() }
-  if #trace > TRACE_MAX then
-    table.remove(trace, 1)
-  end
+  trace_count = trace_count + 1
+  trace[(trace_count - 1) % TRACE_MAX + 1] = { event = event, at = os.time() }
 
   local fire = function()
     vim.api.nvim_exec_autocmds("User", { pattern = event, data = data or {} })
@@ -103,7 +103,15 @@ end
 --- Recent emits (oldest first), for debugging. Each entry: { event, at }.
 ---@return { event: string, at: integer }[]
 function M.history()
-  return vim.deepcopy(trace)
+  local n = math.min(trace_count, TRACE_MAX)
+  -- Before wrap the oldest slot is 1; after wrap it's the slot just past the
+  -- most recent write.
+  local oldest = trace_count <= TRACE_MAX and 0 or (trace_count % TRACE_MAX)
+  local out = {}
+  for i = 0, n - 1 do
+    out[i + 1] = vim.deepcopy(trace[(oldest + i) % TRACE_MAX + 1])
+  end
+  return out
 end
 
 return M

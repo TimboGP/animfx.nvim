@@ -370,6 +370,16 @@ do
     animfx.emit("TestBoundEv", {})
   end
   check("introspection: Emit history ring buffer", "history is bounded to 100 entries", #animfx.history() <= 100)
+
+  for i = 1, 105 do
+    animfx.emit("TO" .. i, {})
+  end
+  local h = animfx.history()
+  check(
+    "introspection: Emit history ring buffer",
+    "history stays oldest-first after wraparound",
+    #h == 100 and h[1].event == "TO6" and h[100].event == "TO105"
+  )
 end
 
 do
