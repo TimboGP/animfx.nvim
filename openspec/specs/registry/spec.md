@@ -56,7 +56,7 @@ be surfaced to the user.
 - GIVEN a throwing effect and a second effect both registered for `"E"`
 - WHEN `"E"` is emitted
 - THEN the second effect still runs
-- AND the error from the first is reported via `vim.notify`
+- AND the error from the first is surfaced to the user
 
 ### Requirement: Unregister an effect
 The system SHALL remove a registration via `animfx.off(id)` using the id

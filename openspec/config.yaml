@@ -1,0 +1,39 @@
+schema: spec-driven
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+context: |
+  animfx.nvim — an event-triggered animation registry for Neovim. Decouples
+  "something happened" from "what visual effect plays": call sites emit named
+  events; effects register against event names independently. Deliberately
+  narrow — register effect <-> event, emit event, run effect(s). NOT a general
+  autocmd wrapper; does not replace mini.animate / smear-cursor / pulsar for the
+  built-in actions they already cover.
+
+  Tech stack: Lua (LuaJIT), Neovim stable + nightly (0.10+). No runtime deps;
+  nvim-notify is optional with graceful fallback.
+
+  Transport: rides Neovim's built-in `User` autocmd (nvim_create_autocmd /
+  nvim_exec_autocmds), so registrations stay introspectable via `:au User` and
+  interoperate with other `User` listeners. Do not invent new event plumbing.
+
+  Conventions: effects are `function(data)`; constructors take `opts` and return
+  one. Effect execution is pcall-isolated (one failing effect never blocks
+  others). Modules: animfx (registry), animfx.effects, animfx.combinators,
+  animfx.remote, animfx.health.
+
+  Testing: headless suite in tests/run.lua via `make test` (nvim -l), no
+  plenary; CI on stable + nightly. stylua + luacheck for local dev.
+
+  Capabilities map to modules: registry, effects, combinators, introspection,
+  remote.
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
