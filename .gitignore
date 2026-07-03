@@ -1,0 +1,6 @@
+# Lua / Neovim
+*.luac
+.luarc.json
+
+# OS
+.DS_Store

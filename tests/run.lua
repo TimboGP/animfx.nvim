@@ -1,0 +1,91 @@
+-- Headless test runner. Run from the plugin root with:
+--   nvim -l tests/run.lua
+-- Exits non-zero on failure.
+
+vim.opt.runtimepath:prepend(vim.fn.getcwd())
+
+local animfx = require("animfx")
+local effects = require("animfx.effects")
+
+local failed = 0
+local function check(name, cond)
+  if cond then
+    print("  ok   - " .. name)
+  else
+    failed = failed + 1
+    print("  FAIL - " .. name)
+  end
+end
+
+-- emit reaches a registered effect with the payload -----------------------
+do
+  local got
+  animfx.on("TestBasic", function(data)
+    got = data.value
+  end)
+  animfx.emit("TestBasic", { value = 42 })
+  check("emit delivers payload to effect", got == 42)
+end
+
+-- multiple effects on one event all run, in order -------------------------
+do
+  local order = {}
+  animfx.on("TestMulti", function()
+    order[#order + 1] = "a"
+  end)
+  animfx.on("TestMulti", function()
+    order[#order + 1] = "b"
+  end)
+  animfx.emit("TestMulti", {})
+  check("all effects run in registration order", order[1] == "a" and order[2] == "b")
+end
+
+-- a throwing effect does not block later effects --------------------------
+do
+  local reached = false
+  animfx.on("TestIsolation", function()
+    error("boom")
+  end)
+  animfx.on("TestIsolation", function()
+    reached = true
+  end)
+  animfx.emit("TestIsolation", {})
+  check("error in one effect is isolated", reached == true)
+end
+
+-- off() unregisters -------------------------------------------------------
+do
+  local hits = 0
+  local id = animfx.on("TestOff", function()
+    hits = hits + 1
+  end)
+  animfx.emit("TestOff", {})
+  animfx.off(id)
+  animfx.emit("TestOff", {})
+  check("off() removes the effect", hits == 1)
+end
+
+-- emit with no data passes an empty table (no nil crash) ------------------
+do
+  local ok = true
+  animfx.on("TestNilData", function(data)
+    ok = type(data) == "table"
+  end)
+  animfx.emit("TestNilData")
+  check("emit with no data yields a table", ok)
+end
+
+-- line_flash sets an extmark on the target line ---------------------------
+do
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "one", "two", "three" })
+  local ns = vim.api.nvim_create_namespace("animfx_line_flash")
+  effects.line_flash({ hl = "IncSearch", duration = 10 })({ buf = buf, line = 1 })
+  local marks = vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {})
+  check("line_flash places an extmark", #marks == 1)
+end
+
+print(("\n%s (%d failure%s)"):format(failed == 0 and "PASS" or "FAILED", failed, failed == 1 and "" or "s"))
+if failed > 0 then
+  os.exit(1)
+end
