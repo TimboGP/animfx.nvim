@@ -234,7 +234,10 @@ make fmt         # stylua format
 make lint        # luacheck
 ```
 
-CI runs the suite on Neovim stable and nightly.
+CI runs the suite on Neovim stable and nightly. The suite enforces
+spec-to-test traceability — every test is tagged with the `openspec/` requirement
+it covers, and the build fails on any uncovered requirement. See
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Design notes
 

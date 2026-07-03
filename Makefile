@@ -1,8 +1,8 @@
 .PHONY: test fmt fmt-check lint
 
-# Headless test suite (no plugins needed).
+# Headless unit suite (--clean so results don't depend on the user's config).
 test:
-	nvim -l tests/run.lua
+	nvim --clean -l tests/run.lua
 
 # Format in place (requires stylua).
 fmt:

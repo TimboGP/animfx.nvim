@@ -1,6 +1,15 @@
 -- Headless test runner. Run from the plugin root with:
---   nvim -l tests/run.lua
+--   make test          (nvim --clean -l tests/run.lua)
 -- Exits non-zero on failure.
+--
+-- Spec-to-test traceability: every check() is tagged with the spec requirement
+-- it covers, formatted "<capability>: <Requirement heading>" exactly as it
+-- appears in openspec/specs/<capability>/spec.md. After the tests run, a
+-- coverage gate cross-checks both directions:
+--   * a test tagged with an unknown requirement fails (dangling reference)
+--   * a requirement with no unit test and not on the integration allowlist
+--     fails (uncovered)
+-- See CONTRIBUTING.md.
 
 vim.opt.runtimepath:prepend(vim.fn.getcwd())
 
@@ -9,26 +18,37 @@ local effects = require("animfx.effects")
 local c = require("animfx.combinators")
 
 local failed = 0
-local function check(name, cond)
+local covered = {} -- spec ref -> true, for the coverage gate
+
+local function check(spec, name, cond)
+  covered[spec] = true
   if cond then
-    print("  ok   - " .. name)
+    print(("  ok   - [%s] %s"):format(spec, name))
   else
     failed = failed + 1
-    print("  FAIL - " .. name)
+    print(("  FAIL - [%s] %s"):format(spec, name))
   end
 end
 
--- emit reaches a registered effect with the payload -----------------------
+-- registry ----------------------------------------------------------------
 do
   local got
   animfx.on("TestBasic", function(data)
     got = data.value
   end)
   animfx.emit("TestBasic", { value = 42 })
-  check("emit delivers payload to effect", got == 42)
+  check("registry: Register an effect against an event", "emit delivers payload to effect", got == 42)
 end
 
--- multiple effects on one event all run, in order -------------------------
+do
+  local ok = true
+  animfx.on("TestNilData", function(data)
+    ok = type(data) == "table"
+  end)
+  animfx.emit("TestNilData")
+  check("registry: Emit runs every registered effect", "emit with no data yields a table", ok)
+end
+
 do
   local order = {}
   animfx.on("TestMulti", function()
@@ -38,10 +58,13 @@ do
     order[#order + 1] = "b"
   end)
   animfx.emit("TestMulti", {})
-  check("all effects run in registration order", order[1] == "a" and order[2] == "b")
+  check(
+    "registry: Multiple effects run in registration order",
+    "effects run in registration order",
+    order[1] == "a" and order[2] == "b"
+  )
 end
 
--- a throwing effect does not block later effects --------------------------
 do
   local reached = false
   animfx.on("TestIsolation", function()
@@ -51,10 +74,9 @@ do
     reached = true
   end)
   animfx.emit("TestIsolation", {})
-  check("error in one effect is isolated", reached == true)
+  check("registry: Error isolation between effects", "error in one effect is isolated", reached == true)
 end
 
--- off() unregisters -------------------------------------------------------
 do
   local hits = 0
   local id = animfx.on("TestOff", function()
@@ -63,136 +85,42 @@ do
   animfx.emit("TestOff", {})
   animfx.off(id)
   animfx.emit("TestOff", {})
-  check("off() removes the effect", hits == 1)
+  check("registry: Unregister an effect", "off() removes the effect", hits == 1)
 end
 
--- emit with no data passes an empty table (no nil crash) ------------------
-do
-  local ok = true
-  animfx.on("TestNilData", function(data)
-    ok = type(data) == "table"
-  end)
-  animfx.emit("TestNilData")
-  check("emit with no data yields a table", ok)
-end
-
--- line_flash sets an extmark on the target line ---------------------------
-do
-  local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "one", "two", "three" })
-  local ns = vim.api.nvim_create_namespace("animfx_line_flash")
-  effects.line_flash({ hl = "IncSearch", duration = 10 })({ buf = buf, line = 1 })
-  local marks = vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {})
-  check("line_flash places an extmark", #marks == 1)
-end
-
--- combinators: chain runs in order with same data -------------------------
-do
-  local seen = {}
-  local eff = c.chain(function(d)
-    seen[#seen + 1] = "a" .. d.n
-  end, function(d)
-    seen[#seen + 1] = "b" .. d.n
-  end)
-  eff({ n = 1 })
-  check("chain runs effects in order with same data", seen[1] == "a1" and seen[2] == "b1")
-end
-
--- combinators: only_if gates on predicate ---------------------------------
-do
-  local ran = 0
-  local eff = c.only_if(function(d)
-    return d.ok
-  end, function()
-    ran = ran + 1
-  end)
-  eff({ ok = false })
-  eff({ ok = true })
-  check("only_if gates on predicate", ran == 1)
-end
-
--- combinators: once fires at most once ------------------------------------
-do
-  local ran = 0
-  local eff = c.once(function()
-    ran = ran + 1
-  end)
-  eff({})
-  eff({})
-  check("once fires at most once", ran == 1)
-end
-
--- combinators: debounce collapses a burst, keeps last data ----------------
-do
-  local ran, last = 0, nil
-  local eff = c.debounce(20, function(d)
-    ran = ran + 1
-    last = d.n
-  end)
-  eff({ n = 1 })
-  eff({ n = 2 })
-  eff({ n = 3 })
-  vim.wait(80, function()
-    return ran > 0
-  end)
-  check("debounce collapses burst to one call with last data", ran == 1 and last == 3)
-end
-
--- combinators: throttle fires leading edge, blocks the rest ----------------
-do
-  local ran = 0
-  local eff = c.throttle(40, function()
-    ran = ran + 1
-  end)
-  eff({})
-  eff({})
-  eff({})
-  check("throttle fires only the leading call", ran == 1)
-  vim.wait(70)
-  eff({})
-  check("throttle fires again after the window", ran == 2)
-end
-
--- introspection: list() counts effects per event -------------------------
-do
-  animfx.on("TestListEv", function() end)
-  animfx.on("TestListEv", function() end)
-  local list = animfx.list()
-  check("list() counts effects per event", list["TestListEv"] == 2)
-end
-
--- introspection: history() records emits ----------------------------------
-do
-  animfx.emit("TestHistEv", {})
-  local hist = animfx.history()
-  local found = false
-  for _, e in ipairs(hist) do
-    if e.event == "TestHistEv" then
-      found = true
-    end
-  end
-  check("history() records the emit", found)
-end
-
--- hardening: emit { schedule = true } defers to the next tick -------------
 do
   local ran = false
   animfx.on("TestSched", function()
     ran = true
   end)
   animfx.emit("TestSched", {}, { schedule = true })
-  check("scheduled emit does not run synchronously", ran == false)
+  check("registry: Synchronous by default, optionally scheduled", "scheduled emit does not run synchronously", ran == false)
   vim.wait(50, function()
     return ran
   end)
-  check("scheduled emit runs on the next tick", ran == true)
+  check("registry: Synchronous by default, optionally scheduled", "scheduled emit runs on the next tick", ran == true)
 end
 
--- hardening: rapid flashes leave no extmarks behind (leak check) ----------
+do
+  local fired = false
+  vim.api.nvim_create_autocmd("User", {
+    pattern = "TestInterop",
+    callback = function()
+      fired = true
+    end,
+  })
+  animfx.emit("TestInterop", {})
+  check("registry: Interoperate with User autocmds", "external User listener receives the emit", fired)
+end
+
+-- effects -----------------------------------------------------------------
 do
   local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "x", "y", "z" })
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "one", "two", "three" })
   local ns = vim.api.nvim_create_namespace("animfx_line_flash")
+  effects.line_flash({ hl = "IncSearch", duration = 10 })({ buf = buf, line = 1 })
+  check("effects: Line flash", "line_flash places an extmark", #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 1)
+
   local flash = effects.line_flash({ hl = "IncSearch", duration = 10 })
   for _ = 1, 200 do
     flash({ buf = buf, line = 0 })
@@ -200,11 +128,9 @@ do
   vim.wait(120, function()
     return #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0
   end)
-  local left = #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {})
-  check("200 rapid flashes leave zero extmarks", left == 0)
+  check("effects: Line flash", "200 rapid flashes leave zero extmarks", #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0)
 end
 
--- hardening: fade also cleans up its extmark ------------------------------
 do
   local buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "a", "b" })
@@ -213,10 +139,9 @@ do
   vim.wait(200, function()
     return #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0
   end)
-  check("fade cleans up its extmark", #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0)
+  check("effects: Line flash fade-out", "fade cleans up its extmark", #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0)
 end
 
--- effects: sign_flash places then clears a sign extmark ------------------
 do
   local buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "one", "two" })
@@ -226,10 +151,13 @@ do
   vim.wait(80, function()
     return #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0
   end)
-  check("sign_flash places then clears a sign", placed == 1 and #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0)
+  check(
+    "effects: Sign flash",
+    "sign_flash places then clears a sign",
+    placed == 1 and #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0
+  )
 end
 
--- effects: cursor_beacon opens then closes a float ------------------------
 do
   local function floats()
     local n = 0
@@ -242,14 +170,25 @@ do
   end
   local before = floats()
   effects.cursor_beacon({ duration = 30, steps = 3 })({})
-  check("cursor_beacon opens a floating window", floats() == before + 1)
+  check("effects: Cursor beacon", "cursor_beacon opens a floating window", floats() == before + 1)
   vim.wait(120, function()
     return floats() == before
   end)
-  check("cursor_beacon closes the float", floats() == before)
+  check("effects: Cursor beacon", "cursor_beacon closes the float", floats() == before)
 end
 
--- effects: delegate falls back when module is missing ---------------------
+do
+  -- With no nvim-notify (guaranteed under --clean), notify_toast must fall back.
+  local captured
+  local orig = vim.notify
+  vim.notify = function(msg)
+    captured = msg
+  end
+  effects.notify_toast({})({ msg = "hello" })
+  vim.notify = orig
+  check("effects: Notify toast", "notify_toast falls back to vim.notify", captured == "hello")
+end
+
 do
   local fellback = false
   effects.delegate({
@@ -258,36 +197,192 @@ do
       fellback = true
     end,
   })({})
-  check("delegate falls back when module absent", fellback)
-end
+  check("effects: Delegate to an external backend", "delegate falls back when module absent", fellback)
 
--- effects: delegate calls the target when present -------------------------
-do
   package.loaded["animfx_fake_backend"] = {
     boom = function(d)
       _G.__animfx_delegate_arg = d.v
     end,
   }
   effects.delegate({ module = "animfx_fake_backend", fn = "boom" })({ v = 7 })
-  check("delegate calls the resolved target", _G.__animfx_delegate_arg == 7)
+  check("effects: Delegate to an external backend", "delegate calls the resolved target", _G.__animfx_delegate_arg == 7)
 end
 
--- remote: serve() returns a listening address ----------------------------
+-- combinators -------------------------------------------------------------
+do
+  local seen = {}
+  c.chain(function(d)
+    seen[#seen + 1] = "a" .. d.n
+  end, function(d)
+    seen[#seen + 1] = "b" .. d.n
+  end)({ n = 1 })
+  check("combinators: Chain effects in sequence", "chain runs effects in order with same data", seen[1] == "a1" and seen[2] == "b1")
+end
+
+do
+  local ran = false
+  c.delay(20, function()
+    ran = true
+  end)({})
+  check("combinators: Delay an effect", "delay does not fire immediately", ran == false)
+  vim.wait(60, function()
+    return ran
+  end)
+  check("combinators: Delay an effect", "delay fires after the delay", ran == true)
+end
+
+do
+  local ran, last = 0, nil
+  local eff = c.debounce(20, function(d)
+    ran = ran + 1
+    last = d.n
+  end)
+  eff({ n = 1 })
+  eff({ n = 2 })
+  eff({ n = 3 })
+  vim.wait(80, function()
+    return ran > 0
+  end)
+  check("combinators: Debounce a burst", "debounce collapses burst to one call with last data", ran == 1 and last == 3)
+end
+
+do
+  local ran = 0
+  local eff = c.throttle(40, function()
+    ran = ran + 1
+  end)
+  eff({})
+  eff({})
+  eff({})
+  check("combinators: Throttle calls", "throttle fires only the leading call", ran == 1)
+  vim.wait(70)
+  eff({})
+  check("combinators: Throttle calls", "throttle fires again after the window", ran == 2)
+end
+
+do
+  local ran = 0
+  local eff = c.only_if(function(d)
+    return d.ok
+  end, function()
+    ran = ran + 1
+  end)
+  eff({ ok = false })
+  eff({ ok = true })
+  check("combinators: Conditional effect", "only_if gates on predicate", ran == 1)
+end
+
+do
+  local ran = 0
+  local eff = c.once(function()
+    ran = ran + 1
+  end)
+  eff({})
+  eff({})
+  check("combinators: Run once", "once fires at most once", ran == 1)
+end
+
+-- introspection -----------------------------------------------------------
+do
+  animfx.on("TestListEv", function() end)
+  animfx.on("TestListEv", function() end)
+  check("introspection: List registrations", "list() counts effects per event", animfx.list()["TestListEv"] == 2)
+end
+
+do
+  animfx.emit("TestHistEv", {})
+  local found = false
+  for _, e in ipairs(animfx.history()) do
+    if e.event == "TestHistEv" then
+      found = true
+    end
+  end
+  check("introspection: Emit history ring buffer", "history() records the emit", found)
+
+  for _ = 1, 150 do
+    animfx.emit("TestBoundEv", {})
+  end
+  check("introspection: Emit history ring buffer", "history is bounded to 100 entries", #animfx.history() <= 100)
+end
+
+do
+  vim.cmd("runtime plugin/animfx.lua")
+  local ran = false
+  animfx.on("TestCmdEv", function()
+    ran = true
+  end)
+  vim.cmd("AnimfxEmit TestCmdEv")
+  check("introspection: Inspection and emit commands", ":AnimfxEmit fires the named event", ran)
+end
+
+-- remote ------------------------------------------------------------------
 do
   local remote = require("animfx.remote")
   local addr = remote.serve({ address = vim.fn.tempname() })
-  check("serve() returns a non-empty address", type(addr) == "string" and #addr > 0)
+  check("remote: Serve a socket address", "serve() returns a non-empty address", type(addr) == "string" and #addr > 0)
   pcall(vim.fn.serverstop, addr)
 end
 
--- remote: remote_expr embeds event name and JSON-encoded data -------------
 do
   local expr = require("animfx.remote").remote_expr("WorkspaceSwitch", { workspace = "3" })
-  check("remote_expr embeds the event name", expr:find("WorkspaceSwitch", 1, true) ~= nil)
-  check("remote_expr JSON-encodes the data", expr:find('workspace', 1, true) ~= nil and expr:find("json.decode", 1, true) ~= nil)
+  check(
+    "remote: Build a remote emit expression",
+    "remote_expr embeds event name and JSON-decodes data",
+    expr:find("WorkspaceSwitch", 1, true) ~= nil and expr:find("json.decode", 1, true) ~= nil
+  )
 end
 
-print(("\n%s (%d failure%s)"):format(failed == 0 and "PASS" or "FAILED", failed, failed == 1 and "" or "s"))
+-- Spec-to-test coverage gate ----------------------------------------------
+-- Requirements coverable only by tests/integration/run.sh (real backends,
+-- multi-process, or checkhealth UI), not by this headless unit runner.
+local integration_covered = {
+  ["introspection: Health check"] = true,
+  ["remote: External emit delivers to registered effects"] = true,
+  ["remote: Graceful when no socket is present"] = true,
+}
+
+local valid = {}
+local total = 0
+for _, cap in ipairs(vim.fn.readdir("openspec/specs")) do
+  local file = "openspec/specs/" .. cap .. "/spec.md"
+  if vim.fn.filereadable(file) == 1 then
+    for _, line in ipairs(vim.fn.readfile(file)) do
+      local req = line:match("^### Requirement:%s*(.-)%s*$")
+      if req then
+        total = total + 1
+        valid[cap .. ": " .. req] = true
+      end
+    end
+  end
+end
+
+print("")
+-- Dangling: a test (or the allowlist) references a requirement that doesn't exist.
+for ref in pairs(covered) do
+  if not valid[ref] then
+    failed = failed + 1
+    print("  DANGLING  - test references unknown requirement: " .. ref)
+  end
+end
+for ref in pairs(integration_covered) do
+  if not valid[ref] then
+    failed = failed + 1
+    print("  DANGLING  - integration allowlist references unknown requirement: " .. ref)
+  end
+end
+-- Uncovered: a requirement no unit test covers and not on the integration allowlist.
+local n_unit = 0
+for ref in pairs(valid) do
+  if covered[ref] then
+    n_unit = n_unit + 1
+  elseif not integration_covered[ref] then
+    failed = failed + 1
+    print("  UNCOVERED - no test for requirement: " .. ref)
+  end
+end
+
+print(("\nSpec coverage: %d requirements — %d unit, %d integration"):format(total, n_unit, vim.tbl_count(integration_covered)))
+print(("%s (%d failure%s)"):format(failed == 0 and "PASS" or "FAILED", failed, failed == 1 and "" or "s"))
 if failed > 0 then
   os.exit(1)
 end

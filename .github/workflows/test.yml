@@ -21,5 +21,5 @@ jobs:
           neovim: true
           version: ${{ matrix.neovim }}
 
-      - name: Run headless test suite
-        run: ${{ steps.vim.outputs.executable }} -l tests/run.lua
+      - name: Run headless unit suite
+        run: ${{ steps.vim.outputs.executable }} --clean -l tests/run.lua
