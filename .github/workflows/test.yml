@@ -23,3 +23,19 @@ jobs:
 
       - name: Run headless unit suite
         run: ${{ steps.vim.outputs.executable }} --clean -l tests/run.lua
+
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: rhysd/action-setup-vim@v1
+        id: vim
+        with:
+          neovim: true
+          version: stable
+
+      - name: Run backend-integration suite
+        run: make test-integration
+        env:
+          NVIM: ${{ steps.vim.outputs.executable }}

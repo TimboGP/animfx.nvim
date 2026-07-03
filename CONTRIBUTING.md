@@ -75,9 +75,19 @@ requirement without updating its test breaks CI. The specs stay enforceable.
 Some requirements can't be exercised by the headless unit runner — they need a
 real backend plugin, multiple processes, or the `:checkhealth` UI. These are
 listed in the `integration_covered` allowlist at the bottom of `tests/run.lua`
-and are verified separately. If you add such a requirement, add it to that
-allowlist (and to the integration suite once one exists) so the gate stays
-green for a real reason, not a forgotten one.
+and are verified by the integration suite instead:
+
+```sh
+make test-integration     # requires git + network
+```
+
+It installs a real backend (nvim-notify) into a temp directory and asserts the
+adapters actually resolve and call it, drives the cross-process remote bridge
+end-to-end, checks `:checkhealth animfx`, and runs an example hook against a
+missing socket. If you add an integration-only requirement, add it to the
+`integration_covered` allowlist **and** add a matching assertion in
+`tests/integration/` so the gate stays green for a real reason, not a forgotten
+one.
 
 ## Style
 
