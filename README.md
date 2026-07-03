@@ -87,6 +87,32 @@ fx.notify_toast({ title = "Harpoon", timeout = 2000 })
 --   data: { msg?, level? }  — opts are merged over { animate = true }
 ```
 
+## Combinators
+
+`require("animfx.combinators")` composes effects — each takes effect
+function(s) and returns a new one, so they nest freely.
+
+```lua
+local c = require("animfx.combinators")
+
+c.chain(a, b, c)          -- run in sequence, same data
+c.delay(ms, effect)       -- defer by ms
+c.debounce(ms, effect)    -- trailing edge: one call after a burst, last data
+c.throttle(ms, effect)    -- leading edge: fire, then ignore for ms
+c.only_if(pred, effect)   -- run only when pred(data) is truthy
+c.once(effect)            -- run at most once
+```
+
+Debounce is the clean fix for rapid re-triggers — e.g. spamming a Harpoon-add
+keymap flashes once when the dust settles, not once per press:
+
+```lua
+animfx.on("HarpoonAdd", c.debounce(200, c.chain(
+  fx.line_flash({ hl = "IncSearch" }),
+  fx.notify_toast({ title = "Harpoon" })
+)))
+```
+
 ## Example: Harpoon add
 
 ```lua

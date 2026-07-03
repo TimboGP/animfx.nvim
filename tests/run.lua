@@ -6,6 +6,7 @@ vim.opt.runtimepath:prepend(vim.fn.getcwd())
 
 local animfx = require("animfx")
 local effects = require("animfx.effects")
+local c = require("animfx.combinators")
 
 local failed = 0
 local function check(name, cond)
@@ -83,6 +84,73 @@ do
   effects.line_flash({ hl = "IncSearch", duration = 10 })({ buf = buf, line = 1 })
   local marks = vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {})
   check("line_flash places an extmark", #marks == 1)
+end
+
+-- combinators: chain runs in order with same data -------------------------
+do
+  local seen = {}
+  local eff = c.chain(function(d)
+    seen[#seen + 1] = "a" .. d.n
+  end, function(d)
+    seen[#seen + 1] = "b" .. d.n
+  end)
+  eff({ n = 1 })
+  check("chain runs effects in order with same data", seen[1] == "a1" and seen[2] == "b1")
+end
+
+-- combinators: only_if gates on predicate ---------------------------------
+do
+  local ran = 0
+  local eff = c.only_if(function(d)
+    return d.ok
+  end, function()
+    ran = ran + 1
+  end)
+  eff({ ok = false })
+  eff({ ok = true })
+  check("only_if gates on predicate", ran == 1)
+end
+
+-- combinators: once fires at most once ------------------------------------
+do
+  local ran = 0
+  local eff = c.once(function()
+    ran = ran + 1
+  end)
+  eff({})
+  eff({})
+  check("once fires at most once", ran == 1)
+end
+
+-- combinators: debounce collapses a burst, keeps last data ----------------
+do
+  local ran, last = 0, nil
+  local eff = c.debounce(20, function(d)
+    ran = ran + 1
+    last = d.n
+  end)
+  eff({ n = 1 })
+  eff({ n = 2 })
+  eff({ n = 3 })
+  vim.wait(80, function()
+    return ran > 0
+  end)
+  check("debounce collapses burst to one call with last data", ran == 1 and last == 3)
+end
+
+-- combinators: throttle fires leading edge, blocks the rest ----------------
+do
+  local ran = 0
+  local eff = c.throttle(40, function()
+    ran = ran + 1
+  end)
+  eff({})
+  eff({})
+  eff({})
+  check("throttle fires only the leading call", ran == 1)
+  vim.wait(70)
+  eff({})
+  check("throttle fires again after the window", ran == 2)
 end
 
 print(("\n%s (%d failure%s)"):format(failed == 0 and "PASS" or "FAILED", failed, failed == 1 and "" or "s"))
