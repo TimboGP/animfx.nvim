@@ -24,6 +24,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The unit suite now runs with `nvim --clean` so results don't depend on the
   user's config.
 
+### Fixed
+- `line_flash`/`sign_flash` now clamp an out-of-range `data.line` into the
+  buffer instead of raising (e.g. when `data.buf` is set but `data.line` falls
+  back to a longer buffer's cursor line).
+- Concurrent `line_flash({ fade = true })` invocations no longer share global
+  highlight groups, so overlapping fades with different colors don't overwrite
+  one another mid-animation.
+
 ## [0.1.0] - 2026-07-03
 
 ### Added

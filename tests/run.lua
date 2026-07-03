@@ -133,6 +133,19 @@ end
 
 do
   local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "one", "two" })
+  local ns = vim.api.nvim_create_namespace("animfx_line_flash")
+  local ok = pcall(effects.line_flash({ duration = 10 }), { buf = buf, line = 100 })
+  local marks = vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {})
+  check(
+    "effects: Line flash",
+    "out-of-range line is clamped, not an error",
+    ok and #marks == 1 and marks[1][2] == 1
+  )
+end
+
+do
+  local buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "a", "b" })
   local ns = vim.api.nvim_create_namespace("animfx_line_flash")
   effects.line_flash({ hl = "IncSearch", duration = 40, fade = true, steps = 4 })({ buf = buf, line = 0 })
@@ -140,6 +153,32 @@ do
     return #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0
   end)
   check("effects: Line flash fade-out", "fade cleans up its extmark", #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0)
+end
+
+do
+  -- Two fades started together on different buffers must not share highlight
+  -- groups (regression: previously both used "AnimfxFade<frame>" globally).
+  local ns = vim.api.nvim_create_namespace("animfx_line_flash")
+  local function mkbuf()
+    local b = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(b, 0, -1, false, { "x" })
+    return b
+  end
+  local b1, b2 = mkbuf(), mkbuf()
+  -- steps/duration chosen so a sample at 150ms lands both on frame 1 reliably.
+  effects.line_flash({ hl = "IncSearch", fade = true, steps = 3, duration = 300 })({ buf = b1, line = 0 })
+  effects.line_flash({ hl = "Search", fade = true, steps = 3, duration = 300 })({ buf = b2, line = 0 })
+  vim.wait(150)
+  local function group(b)
+    local m = vim.api.nvim_buf_get_extmarks(b, ns, 0, -1, { details = true })
+    return m[1] and m[1][4] and m[1][4].line_hl_group
+  end
+  local g1, g2 = group(b1), group(b2)
+  check(
+    "effects: Line flash fade-out",
+    "concurrent fades use distinct highlight groups",
+    g1 ~= nil and g2 ~= nil and g1 ~= g2
+  )
 end
 
 do
@@ -155,6 +194,19 @@ do
     "effects: Sign flash",
     "sign_flash places then clears a sign",
     placed == 1 and #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0
+  )
+end
+
+do
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "one", "two" })
+  local ns = vim.api.nvim_create_namespace("animfx_sign_flash")
+  local ok = pcall(effects.sign_flash({ duration = 10 }), { buf = buf, line = 100 })
+  local marks = vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {})
+  check(
+    "effects: Sign flash",
+    "out-of-range line is clamped, not an error",
+    ok and #marks == 1 and marks[1][2] == 1
   )
 end
 

@@ -13,8 +13,9 @@ plugins.
 The system SHALL provide `line_flash(opts)` that highlights a full buffer line
 and clears it after `duration` milliseconds (default highlight `IncSearch`,
 default duration 150). It SHALL default `data.buf` to the current buffer and
-`data.line` to the current cursor line, and SHALL no-op safely when the target
-buffer is invalid.
+`data.line` to the current cursor line, SHALL no-op safely when the target
+buffer is invalid, and SHALL clamp `data.line` into the buffer's line range so
+an out-of-range line never raises an error.
 
 #### Scenario: Flash places then clears a highlight
 - GIVEN `line_flash({ hl = "IncSearch", duration = 150 })`
@@ -27,28 +28,49 @@ buffer is invalid.
 - WHEN all their durations have elapsed
 - THEN no flash extmarks remain in the buffer
 
+#### Scenario: Out-of-range line is clamped, not an error
+- GIVEN a buffer with `data.line` past its last line (e.g. the cursor line of
+  another, longer buffer)
+- WHEN the effect is called
+- THEN it does not raise
+- AND a highlight extmark is placed on the buffer's last line
+
 ### Requirement: Line flash fade-out
 The system SHALL, when `line_flash` is given `fade = true`, step the line
 background from the highlight's background toward Normal's over `steps` frames
 (default 8) instead of a hard clear, and SHALL fall back to the plain flash when
-the highlight has no background color.
+the highlight has no background color. Each fade invocation SHALL use its own
+distinct highlight groups so concurrent fades do not overwrite one another's
+colors.
 
 #### Scenario: Fade cleans up after completing
 - GIVEN `line_flash({ fade = true, steps = 4, duration = 40 })`
 - WHEN the fade completes
 - THEN the flash extmark is removed
 
+#### Scenario: Concurrent fades do not share highlight groups
+- GIVEN two fades started together on different buffers with different colors
+- WHEN a mid-fade frame is sampled
+- THEN each buffer's fade extmark references a different highlight group
+
 ### Requirement: Sign flash
 The system SHALL provide `sign_flash(opts)` that places a sign-column mark
 (default text `▐`, highlight `IncSearch`, duration 300) and clears it after the
 duration, so the cue is visible even when the target line is scrolled off
-screen.
+screen. It SHALL clamp `data.line` into the buffer's line range so an
+out-of-range line never raises an error.
 
 #### Scenario: Sign appears then clears
 - GIVEN `sign_flash({ duration = 300 })`
 - WHEN the effect is called for a valid buffer and line
 - THEN a sign extmark is placed
 - AND it is removed after the duration
+
+#### Scenario: Out-of-range line is clamped, not an error
+- GIVEN a buffer with `data.line` past its last line
+- WHEN the effect is called
+- THEN it does not raise
+- AND a sign extmark is placed on the buffer's last line
 
 ### Requirement: Cursor beacon
 The system SHALL provide `cursor_beacon(opts)` that opens a small floating

@@ -13,6 +13,17 @@ local function bg_of(name)
   return hl.bg
 end
 
+-- Clamp a 0-indexed line into a buffer's valid range, so an out-of-range line
+-- (e.g. the cursor line of a different, longer buffer) never raises.
+local function clamp_line(buf, line)
+  local last = vim.api.nvim_buf_line_count(buf) - 1
+  return math.max(0, math.min(line, last))
+end
+
+-- Monotonic counter making each fade invocation's highlight groups unique, so
+-- concurrent fades with different colors don't overwrite one another.
+local fade_seq = 0
+
 -- Linear-interpolate two 24-bit colors; alpha 1 = a, 0 = b.
 local function blend(a, b, alpha)
   local function ch(c, shift)
@@ -61,7 +72,7 @@ function M.line_flash(opts)
     if not vim.api.nvim_buf_is_valid(buf) then
       return
     end
-    local line = data.line or (vim.api.nvim_win_get_cursor(0)[1] - 1)
+    local line = clamp_line(buf, data.line or (vim.api.nvim_win_get_cursor(0)[1] - 1))
 
     local from = fade and bg_of(hl) or nil
     if not fade or not from then
@@ -76,8 +87,12 @@ function M.line_flash(opts)
     end
 
     -- Fade: step a per-frame highlight group from `hl` bg toward Normal bg.
+    -- Group names are salted with a per-invocation id so two concurrent fades
+    -- (e.g. different colors on different buffers) never clobber each other.
     local to = bg_of("Normal") or 0x000000
     local id = vim.api.nvim_buf_set_extmark(buf, ns, line, 0, { line_hl_group = hl })
+    fade_seq = fade_seq + 1
+    local fid = fade_seq
     local frame = 0
     local interval = math.max(1, math.floor(ms / steps))
     local timer = vim.uv.new_timer()
@@ -95,7 +110,7 @@ function M.line_flash(opts)
           return
         end
         local alpha = 1 - frame / steps
-        local group = "AnimfxFade" .. frame
+        local group = ("AnimfxFade%d_%d"):format(fid, frame)
         vim.api.nvim_set_hl(0, group, { bg = blend(from, to, alpha) })
         pcall(vim.api.nvim_buf_set_extmark, buf, ns, line, 0, { id = id, line_hl_group = group })
       end)
@@ -126,7 +141,7 @@ function M.sign_flash(opts)
     if not vim.api.nvim_buf_is_valid(buf) then
       return
     end
-    local line = data.line or (vim.api.nvim_win_get_cursor(0)[1] - 1)
+    local line = clamp_line(buf, data.line or (vim.api.nvim_win_get_cursor(0)[1] - 1))
 
     local id = vim.api.nvim_buf_set_extmark(buf, ns, line, 0, {
       sign_text = text,
