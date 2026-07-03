@@ -98,8 +98,10 @@ nvim-notify with `opts` merged over `{ animate = true }`, using `data.msg`
 The system SHALL provide `delegate(spec)` that requires `spec.module`, resolves
 `spec.fn` as a dot-path within it, and calls it with arguments built by
 `spec.args(data)` (default `{ data }`). When the module is absent it SHALL call
-`spec.fallback(data)` if provided and otherwise no-op; it SHALL also no-op if
-the resolved target is not callable.
+`spec.fallback(data)` if provided and otherwise no-op. When the module resolves
+but the target is not callable (e.g. a mistyped `fn` path), it SHALL warn once
+via `vim.notify` rather than silently no-op, so the misconfiguration is
+diagnosable.
 
 #### Scenario: Target is called when present
 - GIVEN `delegate({ module = "m", fn = "pulse" })` and module `m` is loaded
@@ -110,4 +112,10 @@ the resolved target is not callable.
 - GIVEN `delegate({ module = "missing", fallback = fb })`
 - WHEN the effect is called
 - THEN `fb` is invoked with `data`
+- AND no error is raised
+
+#### Scenario: Uncallable target warns once
+- GIVEN `delegate({ module = "m", fn = "does_not_exist" })` and module `m` is loaded
+- WHEN the effect is called several times
+- THEN `vim.notify` is called exactly once with a warning
 - AND no error is raised

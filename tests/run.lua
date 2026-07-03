@@ -273,6 +273,19 @@ do
   }
   effects.delegate({ module = "animfx_fake_backend", fn = "boom" })({ v = 7 })
   check("effects: Delegate to an external backend", "delegate calls the resolved target", _G.__animfx_delegate_arg == 7)
+
+  -- Module loaded but fn path is wrong -> warn once across repeated calls.
+  package.loaded["animfx_badfn"] = { real = function() end }
+  local warns = 0
+  local orig = vim.notify
+  vim.notify = function()
+    warns = warns + 1
+  end
+  local eff = effects.delegate({ module = "animfx_badfn", fn = "does_not_exist" })
+  eff({})
+  eff({})
+  vim.notify = orig
+  check("effects: Delegate to an external backend", "delegate warns once on an uncallable target", warns == 1)
 end
 
 -- combinators -------------------------------------------------------------

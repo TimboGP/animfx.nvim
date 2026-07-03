@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Concurrent `line_flash({ fade = true })` invocations no longer share global
   highlight groups, so overlapping fades with different colors don't overwrite
   one another mid-animation.
+- `delegate` now warns once (via `vim.notify`) when the module loads but the
+  `fn` path isn't callable, instead of silently doing nothing.
 
 ## [0.1.0] - 2026-07-03
 

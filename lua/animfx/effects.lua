@@ -236,6 +236,7 @@ end
 function M.delegate(spec)
   assert(type(spec) == "table" and type(spec.module) == "string", "delegate: spec.module required")
   local unpack = table.unpack or unpack
+  local warned = false -- warn at most once per delegate effect, to avoid spam
   return function(data)
     data = data or {}
     local ok, mod = pcall(require, spec.module)
@@ -252,6 +253,15 @@ function M.delegate(spec)
       end
     end
     if type(target) ~= "function" and not (getmetatable(target) or {}).__call then
+      -- Module loaded but the target isn't callable: a real misconfiguration
+      -- (usually a mistyped fn path), so surface it once instead of vanishing.
+      if not warned then
+        warned = true
+        vim.notify(
+          ("animfx.delegate: %s%s is not callable"):format(spec.module, spec.fn and ("." .. spec.fn) or ""),
+          vim.log.levels.WARN
+        )
+      end
       return
     end
     local args = spec.args and spec.args(data) or { data }
