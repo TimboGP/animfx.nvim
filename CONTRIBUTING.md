@@ -89,6 +89,26 @@ missing socket. If you add an integration-only requirement, add it to the
 `tests/integration/` so the gate stays green for a real reason, not a forgotten
 one.
 
+## OpenSpec tooling
+
+The specs in `openspec/` (and `openspec/config.yaml`) are the committed source
+of truth. The OpenSpec **editor integration** — slash commands and skills, e.g.
+`.claude/` for Claude Code — is per-contributor and tool-specific, so it is
+**not** committed (it's gitignored). Generate it for your editor with:
+
+```sh
+npx -y @fission-ai/openspec@latest init --tools <your-tool>
+```
+
+`<your-tool>` is e.g. `claude`, `cursor`, `codex`, or `windsurf` — run
+`npx -y @fission-ai/openspec@latest init --help` for the full list. This writes
+the workflow commands (`/opsx:propose`, `/opsx:apply`, `/opsx:archive`, …) into
+your editor's config and leaves `openspec/` untouched.
+
+You don't need this to contribute: the specs are plain Markdown you can edit
+directly and validate with `openspec validate --specs --strict`. The tooling
+just automates the propose → apply → archive loop.
+
 ## Style
 
 - `stylua` for formatting (`stylua.toml`), `luacheck` for linting
