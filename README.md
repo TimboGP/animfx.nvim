@@ -195,6 +195,31 @@ animfx.on("BuildFailed", shake({ times = 5 }))
 animfx.emit("BuildFailed", { win = 0 })
 ```
 
+## Cross-layer events (AeroSpace, tmux, …)
+
+Neovim already speaks RPC over a socket, so external tools can emit into a
+running instance — turning animfx into a sink for window-manager / multiplexer
+events. Have Neovim listen:
+
+```lua
+require("animfx.remote").serve({ address = "/tmp/nvim-animfx.sock" })
+require("animfx").on("WorkspaceSwitch",
+  require("animfx.effects").cursor_beacon({ hl = "Search" }))
+```
+
+Then any process fires an event over the socket. Data travels as a JSON string
+decoded Lua-side, so there's no Vim dict syntax to escape:
+
+```sh
+nvim --server /tmp/nvim-animfx.sock --remote-expr \
+  "luaeval('require(\"animfx\").emit(_A[1], vim.json.decode(_A[2]))', \
+           ['WorkspaceSwitch', '{\"workspace\": \"3\"}'])"
+```
+
+Ready-to-wire hook scripts are in [`examples/`](examples/) for AeroSpace
+(`on-focus-changed`) and tmux (`pane-focus-in`). `remote.remote_expr(event, data)`
+builds the expression string for you.
+
 ## Health & tests
 
 ```vim

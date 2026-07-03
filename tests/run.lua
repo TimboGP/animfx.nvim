@@ -272,6 +272,21 @@ do
   check("delegate calls the resolved target", _G.__animfx_delegate_arg == 7)
 end
 
+-- remote: serve() returns a listening address ----------------------------
+do
+  local remote = require("animfx.remote")
+  local addr = remote.serve({ address = vim.fn.tempname() })
+  check("serve() returns a non-empty address", type(addr) == "string" and #addr > 0)
+  pcall(vim.fn.serverstop, addr)
+end
+
+-- remote: remote_expr embeds event name and JSON-encoded data -------------
+do
+  local expr = require("animfx.remote").remote_expr("WorkspaceSwitch", { workspace = "3" })
+  check("remote_expr embeds the event name", expr:find("WorkspaceSwitch", 1, true) ~= nil)
+  check("remote_expr JSON-encodes the data", expr:find('workspace', 1, true) ~= nil and expr:find("json.decode", 1, true) ~= nil)
+end
+
 print(("\n%s (%d failure%s)"):format(failed == 0 and "PASS" or "FAILED", failed, failed == 1 and "" or "s"))
 if failed > 0 then
   os.exit(1)
