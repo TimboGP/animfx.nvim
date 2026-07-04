@@ -24,6 +24,9 @@ local hok, harpoon = pcall(require, "harpoon")
 check("harpoon resolves from the runtimepath", hok)
 
 if hok then
+  -- Fresh CI runners may lack stdpath("data"); harpoon's own mkdir isn't
+  -- recursive, so ensure its data dir exists before it reads/writes.
+  vim.fn.mkdir(vim.fn.stdpath("data") .. "/harpoon", "p")
   harpoon:setup()
   require("animfx.sources").on_harpoon({ event = "HarpoonAdd" })
 
