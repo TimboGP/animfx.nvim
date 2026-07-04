@@ -722,6 +722,13 @@ do
   )
 end
 
+do
+  -- Harpoon isn't installed under --clean; on_harpoon must no-op, not raise.
+  -- The real "emits on add" behavior is covered by tests/integration.
+  local ok = pcall(require("animfx.sources").on_harpoon, { event = "TestHarpoon" })
+  check("sources: Harpoon source", "on_harpoon no-ops when harpoon is absent", ok == true)
+end
+
 -- Spec-to-test coverage gate ----------------------------------------------
 -- Requirements coverable only by tests/integration/run.sh (real backends,
 -- multi-process, or checkhealth UI), not by this headless unit runner.

@@ -79,4 +79,26 @@ function M.on_search(opts)
   end
 end
 
+--- Emit an animfx event when a file is added to a harpoon list (harpoon.nvim
+--- v2), carrying `{ buf, value, idx }`. No-ops if harpoon is not installed.
+---@param opts? { event?: string } event name to emit (default "HarpoonAdd").
+function M.on_harpoon(opts)
+  opts = opts or {}
+  local event = opts.event or "HarpoonAdd"
+  local ok, harpoon = pcall(require, "harpoon")
+  if not ok then
+    return -- harpoon not installed: graceful no-op
+  end
+  harpoon:extend({
+    ADD = function(cx)
+      local item = cx and cx.item
+      require("animfx").emit(event, {
+        buf = vim.api.nvim_get_current_buf(),
+        value = item and item.value,
+        idx = cx and cx.idx,
+      })
+    end,
+  })
+end
+
 return M

@@ -27,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with the landing position).
 - `effects.shake` — jitters a floating cue at the cursor (best-effort error
   feedback; Neovim can't move a non-floating window).
+- `sources.on_harpoon()` — the motivating integration: emits `"HarpoonAdd"`
+  when a file is added to a harpoon list (v2), no-op if harpoon is absent.
+  See `examples/harpoon-add.lua`. Verified against real harpoon in the
+  integration suite.
 
 ## [0.2.0] - 2026-07-04
 

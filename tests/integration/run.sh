@@ -38,6 +38,20 @@ else
   die "backends_spec.lua"
 fi
 
+echo "== on_harpoon against real harpoon.nvim (v2) =="
+git clone --depth 1 -q https://github.com/nvim-lua/plenary.nvim "$DEPS/plenary" &&
+  git clone --depth 1 -q -b harpoon2 https://github.com/ThePrimeagen/harpoon "$DEPS/harpoon"
+if [ -d "$DEPS/harpoon" ] && [ -d "$DEPS/plenary" ]; then
+  export ANIMFX_HARPOON_DEPS="$DEPS/plenary:$DEPS/harpoon"
+  if "$NVIM_BIN" --clean -l "$ROOT/tests/integration/harpoon_spec.lua"; then
+    pass "harpoon_spec.lua"
+  else
+    die "harpoon_spec.lua"
+  fi
+else
+  die "could not clone harpoon/plenary"
+fi
+
 echo "== :checkhealth reports nvim-notify (introspection: Health check) =="
 HOUT="$(mktemp)"
 "$NVIM_BIN" --clean --headless \

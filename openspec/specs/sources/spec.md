@@ -55,3 +55,20 @@ landing position. It respects a preceding count.
 - WHEN `n` is pressed
 - THEN the cursor moves to the next match
 - AND a `"Search"` event fires carrying that position and the pattern
+
+### Requirement: Harpoon source
+The system SHALL provide `animfx.sources.on_harpoon(opts)` that hooks
+harpoon.nvim's (v2) `ADD` extension and emits an animfx event (default
+`"HarpoonAdd"`, overridable via `opts.event`) carrying `{ buf, value, idx }`
+for the added item. When harpoon is not installed it SHALL no-op without error.
+
+#### Scenario: Adding a file emits the event
+- GIVEN harpoon is installed and `on_harpoon()` is active
+- WHEN a file is added to a harpoon list
+- THEN a `"HarpoonAdd"` event fires
+- AND its data carries the added item's value
+
+#### Scenario: No harpoon is a safe no-op
+- GIVEN harpoon is not installed
+- WHEN `on_harpoon()` is called
+- THEN it does not raise

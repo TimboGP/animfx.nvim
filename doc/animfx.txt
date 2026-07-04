@@ -180,6 +180,11 @@ on_search({opts})                            *animfx.sources.on_search()*
     carrying `{ buf, line, col, pattern }` for the landing position. Respects a
     count. Overrides the mapped keys — scope with `opts.keys` if you map them.
 
+on_harpoon({opts})                          *animfx.sources.on_harpoon()*
+    Hook harpoon.nvim (v2) so adding a file emits an animfx event
+    ({opts.event}, default "HarpoonAdd") carrying `{ buf, value, idx }`.
+    No-ops if harpoon isn't installed. See `examples/harpoon-add.lua`.
+
 ==============================================================================
 6. COMMANDS                                                *animfx-commands*
 
