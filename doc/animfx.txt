@@ -164,6 +164,16 @@ on_yank({opts})                                *animfx.sources.on_yank()*
         require("animfx").on("Yank",
           require("animfx.effects").range_flash({ hl = "IncSearch" }))
 <
+on_diagnostic({opts})                    *animfx.sources.on_diagnostic()*
+    On |DiagnosticChanged|, emit an animfx event ({opts.event}, default
+    "Diagnostic") carrying `{ buf, count }`.
+
+on_search({opts})                            *animfx.sources.on_search()*
+    Map the search keys ({opts.keys}, default `n` and `N`) so each does its
+    motion and then emits an animfx event ({opts.event}, default "Search")
+    carrying `{ buf, line, col, pattern }` for the landing position. Respects a
+    count. Overrides the mapped keys — scope with `opts.keys` if you map them.
+
 ==============================================================================
 6. COMMANDS                                                *animfx-commands*
 

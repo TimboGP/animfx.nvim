@@ -662,6 +662,45 @@ do
   )
 end
 
+do
+  require("animfx.sources").on_diagnostic({ event = "TestDiag" })
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "aa", "bb" })
+  local got
+  animfx.on("TestDiag", function(d)
+    got = d
+  end)
+  local dns = vim.api.nvim_create_namespace("test_diag_src")
+  vim.diagnostic.set(dns, buf, { { lnum = 0, col = 0, message = "x", severity = vim.diagnostic.severity.ERROR } })
+  vim.wait(WAIT, function()
+    return got ~= nil
+  end)
+  check(
+    "sources: Diagnostic source",
+    "on_diagnostic emits with buffer and count",
+    got ~= nil and got.buf == buf and got.count >= 1
+  )
+end
+
+do
+  require("animfx.sources").on_search({ event = "TestSearch" })
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "foo", "bar", "foo" })
+  vim.api.nvim_set_current_buf(buf)
+  vim.fn.setreg("/", "foo")
+  vim.api.nvim_win_set_cursor(0, { 1, 0 })
+  local got
+  animfx.on("TestSearch", function(d)
+    got = d
+  end)
+  vim.api.nvim_feedkeys("n", "mx", false) -- trigger the wrapped `n`
+  check(
+    "sources: Search source",
+    "on_search emits the landing position after n",
+    got ~= nil and got.line == 2 and got.pattern == "foo"
+  )
+end
+
 -- Spec-to-test coverage gate ----------------------------------------------
 -- Requirements coverable only by tests/integration/run.sh (real backends,
 -- multi-process, or checkhealth UI), not by this headless unit runner.

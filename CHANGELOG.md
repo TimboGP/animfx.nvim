@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `animfx.enable()` / `animfx.disable()` / `animfx.is_enabled()` global switch.
   Effects are also skipped during macro record/replay by default
   (`vim.g.animfx_animate_in_macros` opts back in).
+- More sources: `sources.on_diagnostic()` (emits `"Diagnostic"` with
+  `{ buf, count }`) and `sources.on_search()` (wraps `n`/`N`, emits `"Search"`
+  with the landing position).
 
 ## [0.2.0] - 2026-07-04
 

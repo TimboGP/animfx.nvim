@@ -174,6 +174,13 @@ animfx.on("BigJump", fx.delegate({
 events from common Neovim happenings — so effects work without wiring `emit`
 yourself. These are deliberately specific (not a general autocmd wrapper).
 
+```lua
+local sources = require("animfx.sources")
+sources.on_yank()        -- "Yank"       on TextYankPost   { buf, start_row, ... }
+sources.on_diagnostic()  -- "Diagnostic" on DiagnosticChanged { buf, count }
+sources.on_search()      -- "Search"     on n / N          { buf, line, col, pattern }
+```
+
 **Recipe — yank highlight** (reimplements `vim.highlight.on_yank` through the
 registry):
 

@@ -35,4 +35,48 @@ function M.on_yank(opts)
   })
 end
 
+--- Emit an animfx event when a buffer's diagnostics change, carrying
+--- `{ buf, count }`. Re-calling replaces the previous autocmd.
+---@param opts? { event?: string } event name to emit (default "Diagnostic").
+function M.on_diagnostic(opts)
+  opts = opts or {}
+  local event = opts.event or "Diagnostic"
+  local group = vim.api.nvim_create_augroup("animfx_source_diagnostic", { clear = true })
+  vim.api.nvim_create_autocmd("DiagnosticChanged", {
+    group = group,
+    desc = "animfx: emit " .. event .. " on diagnostics change",
+    callback = function(args)
+      require("animfx").emit(event, {
+        buf = args.buf,
+        count = #vim.diagnostic.get(args.buf),
+      })
+    end,
+  })
+end
+
+--- Map the search navigation keys so each performs its normal motion and then
+--- emits an animfx event carrying the landing `{ buf, line, col, pattern }`.
+--- Respects a preceding count. Note: this overrides the given keys — scope with
+--- `opts.keys` if you already map them.
+---@param opts? { event?: string, keys?: string[] }
+---  event  Event name to emit (default "Search").
+---  keys   Normal-mode keys to wrap (default { "n", "N" }).
+function M.on_search(opts)
+  opts = opts or {}
+  local event = opts.event or "Search"
+  local keys = opts.keys or { "n", "N" }
+  for _, key in ipairs(keys) do
+    vim.keymap.set("n", key, function()
+      pcall(vim.cmd, "normal! " .. vim.v.count1 .. key)
+      local pos = vim.api.nvim_win_get_cursor(0)
+      require("animfx").emit(event, {
+        buf = vim.api.nvim_get_current_buf(),
+        line = pos[1] - 1,
+        col = pos[2],
+        pattern = vim.fn.getreg("/"),
+      })
+    end, { desc = "animfx: emit " .. event .. " on " .. key })
+  end
+end
+
 return M
