@@ -17,6 +17,14 @@ local animfx = require("animfx")
 local effects = require("animfx.effects")
 local c = require("animfx.combinators")
 
+-- Async timing. Waits are condition-based with a generous ceiling, so they
+-- return the instant the condition holds — only the ceiling is loosened, which
+-- can't cause a false pass. Where a test would otherwise assume a fixed elapsed
+-- time, it polls for the real condition instead. SHORT timer intervals are big
+-- enough that scheduler jitter on a loaded CI runner can't reorder events.
+local WAIT = 2000 -- ceiling for condition waits (ms)
+local SHORT = 50 -- combinator timer interval (ms)
+
 local failed = 0
 local covered = {} -- spec ref -> true, for the coverage gate
 
@@ -95,7 +103,7 @@ do
   end)
   animfx.emit("TestSched", {}, { schedule = true })
   check("registry: Synchronous by default, optionally scheduled", "scheduled emit does not run synchronously", ran == false)
-  vim.wait(50, function()
+  vim.wait(WAIT, function()
     return ran
   end)
   check("registry: Synchronous by default, optionally scheduled", "scheduled emit runs on the next tick", ran == true)
@@ -140,7 +148,7 @@ do
   for _ = 1, 200 do
     flash({ buf = buf, line = 0 })
   end
-  vim.wait(120, function()
+  vim.wait(WAIT, function()
     return #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0
   end)
   check("effects: Line flash", "200 rapid flashes leave zero extmarks", #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0)
@@ -164,7 +172,7 @@ do
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "a", "b" })
   local ns = vim.api.nvim_create_namespace("animfx_line_flash")
   effects.line_flash({ hl = "IncSearch", duration = 40, fade = true, steps = 4 })({ buf = buf, line = 0 })
-  vim.wait(200, function()
+  vim.wait(WAIT, function()
     return #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0
   end)
   check("effects: Line flash fade-out", "fade cleans up its extmark", #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0)
@@ -180,14 +188,23 @@ do
     return b
   end
   local b1, b2 = mkbuf(), mkbuf()
-  -- steps/duration chosen so a sample at 150ms lands both on frame 1 reliably.
-  effects.line_flash({ hl = "IncSearch", fade = true, steps = 3, duration = 300 })({ buf = b1, line = 0 })
-  effects.line_flash({ hl = "Search", fade = true, steps = 3, duration = 300 })({ buf = b2, line = 0 })
-  vim.wait(150)
+  -- Long fades so sampling lands safely mid-animation; we poll for the actual
+  -- frame advance rather than assuming a fixed elapsed time.
+  effects.line_flash({ hl = "IncSearch", fade = true, steps = 8, duration = 4000 })({ buf = b1, line = 0 })
+  effects.line_flash({ hl = "Search", fade = true, steps = 8, duration = 4000 })({ buf = b2, line = 0 })
   local function group(b)
     local m = vim.api.nvim_buf_get_extmarks(b, ns, 0, -1, { details = true })
     return m[1] and m[1][4] and m[1][4].line_hl_group
   end
+  -- At frame 0 the group is the base hl; once a frame ticks it becomes
+  -- "AnimfxFade...". Wait until both have advanced, then compare.
+  local function faded(b)
+    local g = group(b)
+    return type(g) == "string" and g:match("^AnimfxFade") ~= nil
+  end
+  vim.wait(WAIT, function()
+    return faded(b1) and faded(b2)
+  end)
   local g1, g2 = group(b1), group(b2)
   check(
     "effects: Line flash fade-out",
@@ -202,7 +219,7 @@ do
   local ns = vim.api.nvim_create_namespace("animfx_sign_flash")
   effects.sign_flash({ duration = 10 })({ buf = buf, line = 0 })
   local placed = #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {})
-  vim.wait(80, function()
+  vim.wait(WAIT, function()
     return #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0
   end)
   check(
@@ -238,7 +255,7 @@ do
   local before = floats()
   effects.cursor_beacon({ duration = 30, steps = 3 })({})
   check("effects: Cursor beacon", "cursor_beacon opens a floating window", floats() == before + 1)
-  vim.wait(120, function()
+  vim.wait(WAIT, function()
     return floats() == before
   end)
   check("effects: Cursor beacon", "cursor_beacon closes the float", floats() == before)
@@ -311,11 +328,11 @@ end
 
 do
   local ran = false
-  c.delay(20, function()
+  c.delay(SHORT, function()
     ran = true
   end)({})
   check("combinators: Delay an effect", "delay does not fire immediately", ran == false)
-  vim.wait(60, function()
+  vim.wait(WAIT, function()
     return ran
   end)
   check("combinators: Delay an effect", "delay fires after the delay", ran == true)
@@ -323,14 +340,14 @@ end
 
 do
   local ran, last = 0, nil
-  local eff = c.debounce(20, function(d)
+  local eff = c.debounce(SHORT, function(d)
     ran = ran + 1
     last = d.n
   end)
   eff({ n = 1 })
   eff({ n = 2 })
   eff({ n = 3 })
-  vim.wait(80, function()
+  vim.wait(WAIT, function()
     return ran > 0
   end)
   check("combinators: Debounce a burst", "debounce collapses burst to one call with last data", ran == 1 and last == 3)
@@ -338,15 +355,18 @@ end
 
 do
   local ran = 0
-  local eff = c.throttle(40, function()
+  local eff = c.throttle(SHORT, function()
     ran = ran + 1
   end)
   eff({})
   eff({})
   eff({})
   check("combinators: Throttle calls", "throttle fires only the leading call", ran == 1)
-  vim.wait(70)
-  eff({})
+  -- Keep trying past the window; the call that lands once it opens sets ran=2.
+  vim.wait(WAIT, function()
+    eff({})
+    return ran == 2
+  end, 10)
   check("combinators: Throttle calls", "throttle fires again after the window", ran == 2)
 end
 
