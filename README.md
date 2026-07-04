@@ -126,6 +126,14 @@ fx.sign_flash({ text = "▐", hl = "IncSearch", duration = 300 })
 fx.cursor_beacon({ hl = "Search", width = 10, duration = 220 })
 --   data: {}  (positions at the cursor)
 
+-- Flash a line on/off N times, then clear.
+fx.blink({ hl = "IncSearch", times = 3, interval = 100 })
+--   data: { buf?, line? }
+
+-- End-of-line virtual-text badge that clears after `duration`.
+fx.virt_badge({ hl = "Comment", duration = 1500 })
+--   data: { buf?, line?, text }  (or `msg`)
+
 -- Animated toast via nvim-notify (falls back to vim.notify if absent).
 fx.notify_toast({ title = "Harpoon", timeout = 2000 })
 --   data: { msg?, level? }  — opts are merged over { animate = true }

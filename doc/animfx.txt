@@ -101,6 +101,14 @@ cursor_beacon({opts})                        *animfx.effects.cursor_beacon()*
     A pulse at the cursor: a small floating window that fades out.
     Dependency-free. `data`: `{}`.
 
+blink({opts})                                        *animfx.effects.blink()*
+    Flash a line's highlight on and off `opts.times` times (default 3) at
+    `opts.interval` ms (default 100), then clear. `data`: `{ buf?, line? }`.
+
+virt_badge({opts})                              *animfx.effects.virt_badge()*
+    Show `data.text` (or `data.msg`) as end-of-line virtual text, clearing
+    after `opts.duration` ms (default 1500). `data`: `{ buf?, line?, text }`.
+
 notify_toast({opts})                          *animfx.effects.notify_toast()*
     Animated toast via nvim-notify, falling back to |vim.notify()| when it is
     not installed. `opts` is merged over `{ animate = true }`. `data`:

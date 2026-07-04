@@ -121,6 +121,30 @@ with no dependency on any external animation plugin.
 - THEN a floating window relative to the cursor is opened
 - AND it is closed after the fade completes
 
+### Requirement: Blink
+The system SHALL provide `blink(opts)` that flashes a line's highlight on and
+off `opts.times` times (default 3) at `opts.interval` ms (default 100), then
+leaves it cleared. It SHALL clamp `data.line` into the buffer and use a tracked
+timer so it is cancelled on exit (see "Animation timers are cancelled on exit").
+
+#### Scenario: Blink appears then clears
+- GIVEN `blink({ times = 2, interval = 15 })`
+- WHEN the effect is called for a valid buffer and line
+- THEN the line highlight is visible immediately
+- AND no highlight remains once the blinks finish
+
+### Requirement: Virtual badge
+The system SHALL provide `virt_badge(opts)` that shows `data.text` (or
+`data.msg`) as end-of-line virtual text on a line (highlight `opts.hl` default
+"Comment") and clears it after `opts.duration` ms (default 1500). It SHALL
+no-op on empty text and clamp `data.line` into the buffer.
+
+#### Scenario: Badge appears then clears
+- GIVEN `virt_badge({ duration = 1500 })`
+- WHEN called with `{ line = 0, text = "hi" }`
+- THEN end-of-line virtual text is shown on that line
+- AND it is removed after the duration
+
 ### Requirement: Notify toast
 The system SHALL provide `notify_toast(opts)` that shows a message via
 nvim-notify with `opts` merged over `{ animate = true }`, using `data.msg`

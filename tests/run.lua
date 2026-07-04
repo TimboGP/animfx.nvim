@@ -370,6 +370,31 @@ do
 end
 
 do
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "one", "two" })
+  local ns = vim.api.nvim_create_namespace("animfx_blink")
+  effects.blink({ times = 2, interval = 15 })({ buf = buf, line = 0 })
+  check("effects: Blink", "blink starts visible", #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) >= 1)
+  vim.wait(WAIT, function()
+    return #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0
+  end)
+  check("effects: Blink", "blink clears after finishing", #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0)
+end
+
+do
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "one", "two" })
+  local ns = vim.api.nvim_create_namespace("animfx_virt_badge")
+  effects.virt_badge({ duration = 10 })({ buf = buf, line = 0, text = "hi" })
+  local m = vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, { details = true })
+  check("effects: Virtual badge", "virt_badge places end-of-line virtual text", m[1] ~= nil and m[1][4].virt_text ~= nil)
+  vim.wait(WAIT, function()
+    return #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0
+  end)
+  check("effects: Virtual badge", "virt_badge clears after the duration", #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0)
+end
+
+do
   -- With no nvim-notify (guaranteed under --clean), notify_toast must fall back.
   local captured
   local orig = vim.notify

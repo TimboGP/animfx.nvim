@@ -304,6 +304,105 @@ function M.cursor_beacon(opts)
   end
 end
 
+--- Flash a line's highlight on and off `times` times, then leave it cleared.
+---
+---@param opts? { hl?: string, times?: integer, interval?: integer }
+---  hl       Highlight group (default "IncSearch").
+---  times    Number of on-flashes (default 3).
+---  interval Milliseconds per on/off phase (default 100).
+---@return fun(data: { buf?: integer, line?: integer })
+function M.blink(opts)
+  opts = opts or {}
+  local hl = opts.hl or "IncSearch"
+  local times = opts.times or 3
+  local interval = opts.interval or 100
+  local ns = vim.api.nvim_create_namespace("animfx_blink")
+
+  return function(data)
+    data = data or {}
+    local buf = data.buf or vim.api.nvim_get_current_buf()
+    if not vim.api.nvim_buf_is_valid(buf) then
+      return
+    end
+    local line = clamp_line(buf, data.line or (vim.api.nvim_win_get_cursor(0)[1] - 1))
+
+    local id
+    local function set_on()
+      id = vim.api.nvim_buf_set_extmark(buf, ns, line, 0, { line_hl_group = hl })
+    end
+    local function set_off()
+      if id then
+        pcall(vim.api.nvim_buf_del_extmark, buf, ns, id)
+        id = nil
+      end
+    end
+
+    set_on() -- start visible; subsequent states are toggled by the timer
+    local fires, total = 0, times * 2 - 1
+    local timer = managed_timer()
+    timer:start(
+      interval,
+      interval,
+      vim.schedule_wrap(function()
+        if not vim.api.nvim_buf_is_valid(buf) then
+          release_timer(timer)
+          return
+        end
+        fires = fires + 1
+        if fires % 2 == 1 then
+          set_off()
+        else
+          set_on()
+        end
+        if fires >= total then
+          release_timer(timer)
+          set_off()
+        end
+      end)
+    )
+  end
+end
+
+--- Show `data.text` (or `data.msg`) as end-of-line virtual text on a line,
+--- clearing it after `duration` ms.
+---
+---@param opts? { hl?: string, duration?: integer }
+---  hl       Highlight group for the badge (default "Comment").
+---  duration Milliseconds before clearing (default 1500).
+---@return fun(data: { buf?: integer, line?: integer, text?: string, msg?: string })
+function M.virt_badge(opts)
+  opts = opts or {}
+  local hl = opts.hl or "Comment"
+  local ms = opts.duration or 1500
+  local ns = vim.api.nvim_create_namespace("animfx_virt_badge")
+
+  return function(data)
+    data = data or {}
+    local buf = data.buf or vim.api.nvim_get_current_buf()
+    if not vim.api.nvim_buf_is_valid(buf) then
+      return
+    end
+    local text = data.text or data.msg or ""
+    if text == "" then
+      return
+    end
+    local line = clamp_line(buf, data.line or (vim.api.nvim_win_get_cursor(0)[1] - 1))
+
+    local ok, id = pcall(vim.api.nvim_buf_set_extmark, buf, ns, line, 0, {
+      virt_text = { { " " .. text .. " ", hl } },
+      virt_text_pos = "eol",
+    })
+    if not ok then
+      return
+    end
+    vim.defer_fn(function()
+      if vim.api.nvim_buf_is_valid(buf) then
+        pcall(vim.api.nvim_buf_del_extmark, buf, ns, id)
+      end
+    end, ms)
+  end
+end
+
 --- Generic backend adapter: delegate to another plugin's function, degrading
 --- gracefully when it isn't installed. This is how an existing engine
 --- (pulsar.nvim, mini.animate, ...) becomes an animfx effect so one registry

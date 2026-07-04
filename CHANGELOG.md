@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Neovim happenings. First source: `on_yank()` (emits `"Yank"` with the yanked
   range). Combined with `range_flash`, this reimplements yank highlighting
   through the registry (see `examples/yank-highlight.lua`).
+- `effects.blink` (flash a line on/off N times) and `effects.virt_badge`
+  (end-of-line virtual-text label that clears after a duration).
 
 ## [0.2.0] - 2026-07-04
 
