@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `animfx.setup(config)` registers effects declaratively — a table mapping
+  events to an effect or a list of them. Re-running replaces its own
+  registrations without affecting `on()` calls.
+
 ## [0.2.0] - 2026-07-04
 
 ### Added

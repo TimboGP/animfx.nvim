@@ -84,6 +84,28 @@ registrations. It affects only registrations made through animfx, not other
 - WHEN `animfx.clear()` is called with no argument
 - THEN `animfx.list()` is empty
 
+### Requirement: Declarative setup
+The system SHALL provide `animfx.setup(config)` that registers effects
+declaratively: `config` maps event names to an effect function or a list of
+effect functions. Re-calling `setup` SHALL replace the registrations it made on
+a previous call, without affecting effects registered directly via `on()`.
+
+#### Scenario: Setup registers effects
+- GIVEN `animfx.setup({ E = fn })`
+- WHEN `"E"` is emitted
+- THEN `fn` runs
+
+#### Scenario: Setup accepts a single effect or a list
+- GIVEN `animfx.setup({ E = { a, b } })`
+- WHEN `"E"` is emitted
+- THEN both `a` and `b` run
+
+#### Scenario: Re-running setup replaces only its own registrations
+- GIVEN an effect registered for `"F"` via `on()`, then two `setup()` calls
+- WHEN the second `setup` runs
+- THEN the first setup's effects are gone
+- AND the `on()` registration for `"F"` remains
+
 ### Requirement: Synchronous by default, optionally scheduled
 The system SHALL run effects synchronously by default so callers observe them
 before `emit` returns, and SHALL defer them to the next event-loop tick when

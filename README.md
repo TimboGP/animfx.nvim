@@ -60,6 +60,14 @@ No `opts`/`setup()` — it's a library. `require` it where you wire things up.
 ```lua
 local animfx = require("animfx")
 
+--- Declarative registration: map events to an effect or a list of them.
+--- Re-running replaces what the previous setup() registered, leaving
+--- on() registrations untouched.
+animfx.setup({
+  HarpoonAdd = { effects.line_flash({ hl = "IncSearch" }), effects.notify_toast({}) },
+  BuildFailed = effects.cursor_beacon({ hl = "Error" }),
+})
+
 --- Register an effect against an event. Returns an autocmd id.
 --- Multiple effects per event run in registration order; a throwing
 --- effect is caught and reported, never blocking the others.

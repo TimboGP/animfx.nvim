@@ -39,6 +39,16 @@ Example: >lua
 
 Access via `require("animfx")`.
 
+setup({config})                                              *animfx.setup()*
+    Register effects declaratively. {config} maps an event name to an effect
+    function or a list of them. Re-running replaces the registrations the
+    previous `setup` made, leaving effects registered via |animfx.on()|
+    untouched. >lua
+        require("animfx").setup({
+          HarpoonAdd = { fx.line_flash({ hl = "IncSearch" }), fx.notify_toast({}) },
+          BuildFailed = fx.cursor_beacon({ hl = "Error" }),
+        })
+<
 on({event}, {effect})                                          *animfx.on()*
     Register {effect} (a `function(data)`) against {event}. Multiple effects
     per event run in registration order. Returns an autocmd id for |animfx.off()|.

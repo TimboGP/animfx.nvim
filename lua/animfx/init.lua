@@ -19,6 +19,10 @@ local TRACE_MAX = 100
 local trace = {}
 local trace_count = 0 -- total emits; write slot derives from this
 
+-- Autocmd ids created by the most recent M.setup(), so a re-run can replace
+-- just those without touching effects registered directly via M.on().
+local setup_ids = {}
+
 --- Register an effect against an event name.
 ---
 --- Multiple effects may be registered for the same event; each becomes its own
@@ -51,6 +55,29 @@ end
 ---@param id integer The value returned from `M.on`.
 function M.off(id)
   pcall(vim.api.nvim_del_autocmd, id)
+end
+
+--- Register effects declaratively. `config` maps an event name to an effect
+--- function or a list of them. Re-running replaces the registrations the
+--- previous `setup` made, leaving effects registered via `on()` untouched.
+---@param config table<string, fun(data: table)|(fun(data: table))[]>
+function M.setup(config)
+  assert(type(config) == "table", "animfx.setup: config must be a table")
+
+  for _, id in ipairs(setup_ids) do
+    M.off(id)
+  end
+  setup_ids = {}
+
+  for event, effects in pairs(config) do
+    if type(effects) == "function" then
+      effects = { effects }
+    end
+    assert(type(effects) == "table", "animfx.setup: " .. event .. " must be a function or a list of functions")
+    for _, effect_fn in ipairs(effects) do
+      setup_ids[#setup_ids + 1] = M.on(event, effect_fn)
+    end
+  end
 end
 
 --- Remove all effects for `event`, or every animfx registration when called

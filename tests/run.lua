@@ -136,6 +136,58 @@ do
   check("registry: Clear registrations", "clear() removes all registrations", next(animfx.list()) == nil)
 end
 
+do
+  local ran = false
+  animfx.setup({
+    TestSetupE = function()
+      ran = true
+    end,
+  })
+  animfx.emit("TestSetupE", {})
+  check("registry: Declarative setup", "setup registers an effect", ran)
+end
+
+do
+  local n = 0
+  animfx.setup({
+    TestSetupL = {
+      function()
+        n = n + 1
+      end,
+      function()
+        n = n + 1
+      end,
+    },
+  })
+  animfx.emit("TestSetupL", {})
+  check("registry: Declarative setup", "setup accepts a list of effects", n == 2)
+end
+
+do
+  local on_ran, first_setup, second_setup = 0, 0, 0
+  animfx.on("TestSetupKeep", function()
+    on_ran = on_ran + 1
+  end)
+  animfx.setup({
+    TestSetupOld = function()
+      first_setup = first_setup + 1
+    end,
+  })
+  animfx.setup({
+    TestSetupNew = function()
+      second_setup = second_setup + 1
+    end,
+  })
+  animfx.emit("TestSetupOld", {})
+  animfx.emit("TestSetupNew", {})
+  animfx.emit("TestSetupKeep", {})
+  check(
+    "registry: Declarative setup",
+    "re-running setup replaces only its own registrations",
+    first_setup == 0 and second_setup == 1 and on_ran == 1
+  )
+end
+
 -- effects -----------------------------------------------------------------
 do
   local buf = vim.api.nvim_create_buf(false, true)
