@@ -221,6 +221,62 @@ end
 
 do
   local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "hello", "world" })
+  local ns = vim.api.nvim_create_namespace("animfx_range_flash")
+  effects.range_flash({ hl = "IncSearch", duration = 10 })({
+    buf = buf,
+    start_row = 0,
+    start_col = 1,
+    end_row = 1,
+    end_col = 3,
+  })
+  local m = vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, { details = true })
+  check(
+    "effects: Range flash",
+    "range_flash highlights the given range",
+    m[1] ~= nil and m[1][2] == 0 and m[1][3] == 1 and m[1][4].end_row == 1 and m[1][4].end_col == 3
+  )
+  vim.wait(WAIT, function()
+    return #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0
+  end)
+  check("effects: Range flash", "range_flash clears after the duration", #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0)
+end
+
+do
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "ab", "cd" })
+  local ns = vim.api.nvim_create_namespace("animfx_range_flash")
+  local ok = pcall(effects.range_flash({ duration = 10 }), {
+    buf = buf,
+    start_row = 0,
+    start_col = 0,
+    end_row = 99,
+    end_col = 99,
+  })
+  check(
+    "effects: Range flash",
+    "out-of-range coords are clamped, not an error",
+    ok and #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 1
+  )
+end
+
+do
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "foo", "bar" })
+  vim.api.nvim_set_current_buf(buf)
+  vim.cmd("normal! ggVGy") -- linewise yank sets '[ / '] to rows 1..2
+  local ns = vim.api.nvim_create_namespace("animfx_range_flash")
+  effects.range_flash({ duration = 10 })({ buf = buf }) -- no explicit range -> marks
+  local m = vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, { details = true })
+  check(
+    "effects: Range flash",
+    "falls back to the change marks when no range given",
+    m[1] ~= nil and m[1][2] == 0 and m[1][4].end_row == 1
+  )
+end
+
+do
+  local buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "a", "b" })
   local ns = vim.api.nvim_create_namespace("animfx_line_flash")
   effects.line_flash({ hl = "IncSearch", duration = 40, fade = true, steps = 4 })({ buf = buf, line = 0 })

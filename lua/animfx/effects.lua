@@ -144,6 +144,69 @@ function M.line_flash(opts)
   end
 end
 
+--- Flash an arbitrary buffer range, auto-clearing after `duration` ms.
+---
+--- Generalizes line_flash to a column-aware range. The range comes from `data`
+--- (0-indexed, end-exclusive); if omitted it falls back to the `'[` / `']`
+--- marks — the most recently changed or yanked text — which makes it compose
+--- directly with `animfx.sources.on_yank`. Coordinates are clamped so an
+--- out-of-range value never raises.
+---
+---@param opts? { hl?: string, duration?: integer }
+---  hl       Highlight group to apply (default "IncSearch").
+---  duration Milliseconds before clearing (default 150).
+---@return fun(data: { buf?: integer, start_row?: integer, start_col?: integer, end_row?: integer, end_col?: integer })
+function M.range_flash(opts)
+  opts = opts or {}
+  local hl = opts.hl or "IncSearch"
+  local ms = opts.duration or 150
+  local ns = vim.api.nvim_create_namespace("animfx_range_flash")
+
+  return function(data)
+    data = data or {}
+    local buf = data.buf or vim.api.nvim_get_current_buf()
+    if not vim.api.nvim_buf_is_valid(buf) then
+      return
+    end
+
+    local sr, sc, er, ec
+    local start_row = data.start_row
+    if start_row then
+      sr, sc = start_row, data.start_col or 0
+      er, ec = data.end_row or start_row, data.end_col or (sc + 1)
+    else
+      local s = vim.api.nvim_buf_get_mark(buf, "[")
+      local e = vim.api.nvim_buf_get_mark(buf, "]")
+      sr, sc = (s[1] or 1) - 1, s[2] or 0
+      er, ec = (e[1] or 1) - 1, (e[2] or 0) + 1 -- ']' column is inclusive; make it exclusive
+    end
+
+    -- Clamp into the buffer so a bad range can't raise.
+    local last = vim.api.nvim_buf_line_count(buf) - 1
+    local function line_len(row)
+      return #(vim.api.nvim_buf_get_lines(buf, row, row + 1, false)[1] or "")
+    end
+    sr = math.max(0, math.min(sr, last))
+    er = math.max(sr, math.min(er, last))
+    sc = math.max(0, math.min(sc, line_len(sr)))
+    ec = math.max(0, math.min(ec, line_len(er)))
+
+    local ok, id = pcall(vim.api.nvim_buf_set_extmark, buf, ns, sr, sc, {
+      end_row = er,
+      end_col = ec,
+      hl_group = hl,
+    })
+    if not ok then
+      return
+    end
+    vim.defer_fn(function()
+      if vim.api.nvim_buf_is_valid(buf) then
+        pcall(vim.api.nvim_buf_del_extmark, buf, ns, id)
+      end
+    end, ms)
+  end
+end
+
 --- Flash a gutter sign, auto-clearing after `duration` ms.
 ---
 --- Unlike line_flash this shows in the sign column, so it registers even when

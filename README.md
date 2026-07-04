@@ -113,6 +113,10 @@ local fx = require("animfx.effects")
 fx.line_flash({ hl = "IncSearch", duration = 150, fade = true, steps = 8 })
 --   data: { buf?, line? }  — defaults to current buffer / cursor line
 
+-- Highlight an arbitrary range; falls back to the '[ / '] change marks.
+fx.range_flash({ hl = "IncSearch", duration = 150 })
+--   data: { buf?, start_row?, start_col?, end_row?, end_col? }  (0-indexed)
+
 -- Gutter sign flash — visible even when the line is scrolled off-screen.
 fx.sign_flash({ text = "▐", hl = "IncSearch", duration = 300 })
 --   data: { buf?, line? }

@@ -84,6 +84,32 @@ libuv timer leaks.
 - THEN the timer is stopped and closed
 - AND no tracked timers remain
 
+### Requirement: Range flash
+The system SHALL provide `range_flash(opts)` that highlights an arbitrary
+buffer range and clears it after `opts.duration` ms (default 150, highlight
+`opts.hl` default "IncSearch"). The range comes from `data` as 0-indexed,
+end-exclusive `{ start_row, start_col, end_row, end_col }`; when omitted it
+falls back to the `'[` / `']` marks (the most recently changed or yanked text).
+Coordinates SHALL be clamped to the buffer so an out-of-range value never
+raises.
+
+#### Scenario: Highlights the given range then clears
+- GIVEN `range_flash({ duration = 150 })`
+- WHEN called with `{ start_row = 0, start_col = 1, end_row = 1, end_col = 3 }`
+- THEN a highlight extmark spans that range
+- AND it is removed after the duration
+
+#### Scenario: Out-of-range coordinates are clamped, not an error
+- GIVEN coordinates past the end of the buffer
+- WHEN the effect is called
+- THEN it does not raise
+- AND a highlight extmark is placed within the buffer
+
+#### Scenario: Falls back to the change marks
+- GIVEN no explicit range in `data` after a yank
+- WHEN the effect is called
+- THEN it highlights the `'[` / `']` range
+
 ### Requirement: Cursor beacon
 The system SHALL provide `cursor_beacon(opts)` that opens a small floating
 window at the cursor and fades it out over `steps` frames before closing it,

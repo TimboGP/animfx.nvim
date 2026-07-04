@@ -85,6 +85,13 @@ line_flash({opts})                              *animfx.effects.line_flash()*
     clear. `data`: `{ buf?, line? }` (defaults: current buffer / cursor line;
     an out-of-range line is clamped).
 
+range_flash({opts})                            *animfx.effects.range_flash()*
+    Highlight an arbitrary buffer range, clearing after `opts.duration` ms.
+    `data`: `{ buf?, start_row?, start_col?, end_row?, end_col? }` (0-indexed,
+    end-exclusive). With no range it falls back to the `'[` / `']` marks — the
+    most recently changed or yanked text — so it composes with
+    |animfx.sources.on_yank()|. Coordinates are clamped to the buffer.
+
 sign_flash({opts})                              *animfx.effects.sign_flash()*
     Flash a gutter sign (`opts.text` default "▐"), visible even when the line
     is off-screen. `data`: `{ buf?, line? }`.
