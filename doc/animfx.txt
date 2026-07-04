@@ -73,6 +73,14 @@ list()                                                       *animfx.list()*
 history()                                                 *animfx.history()*
     Return recent emits (oldest first, bounded to 100), each `{ event, at }`.
 
+enable()                                                   *animfx.enable()*
+disable()                                                 *animfx.disable()*
+is_enabled()                                           *animfx.is_enabled()*
+    Global on/off switch for effects. While disabled, events still fire (other
+    |User| listeners and introspection are unaffected) but animfx effects
+    no-op. By default effects are also skipped while a macro is recording or
+    replaying; set `vim.g.animfx_animate_in_macros` truthy to opt back in.
+
 ==============================================================================
 3. EFFECTS                                                  *animfx-effects*
 

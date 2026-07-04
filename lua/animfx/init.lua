@@ -23,6 +23,25 @@ local trace_count = 0 -- total emits; write slot derives from this
 -- just those without touching effects registered directly via M.on().
 local setup_ids = {}
 
+-- Global on/off switch for effects. Events still fire when off; only animfx
+-- effect callbacks are skipped.
+local enabled = true
+
+-- Whether effects should run right now: respects the global switch and, unless
+-- vim.g.animfx_animate_in_macros is set, skips macro recording/replay so an
+-- animation doesn't fire dozens of times during a macro.
+local function should_run()
+  if not enabled then
+    return false
+  end
+  if not vim.g.animfx_animate_in_macros then
+    if vim.fn.reg_recording() ~= "" or vim.fn.reg_executing() ~= "" then
+      return false
+    end
+  end
+  return true
+end
+
 --- Register an effect against an event name.
 ---
 --- Multiple effects may be registered for the same event; each becomes its own
@@ -40,6 +59,9 @@ function M.on(event, effect_fn)
     group = augroup,
     pattern = event,
     callback = function(args)
+      if not should_run() then
+        return
+      end
       local ok, err = pcall(effect_fn, args.data)
       if not ok then
         vim.notify(
@@ -78,6 +100,24 @@ function M.setup(config)
       setup_ids[#setup_ids + 1] = M.on(event, effect_fn)
     end
   end
+end
+
+--- Enable animfx effects (the default state).
+function M.enable()
+  enabled = true
+end
+
+--- Disable all animfx effects. Events still fire — other `User` listeners and
+--- introspection are unaffected — but animfx effect callbacks no-op.
+function M.disable()
+  enabled = false
+end
+
+--- Whether animfx is enabled (the global toggle; does not reflect the macro
+--- guard, which is automatic and per-emit).
+---@return boolean
+function M.is_enabled()
+  return enabled
 end
 
 --- Remove all effects for `event`, or every animfx registration when called

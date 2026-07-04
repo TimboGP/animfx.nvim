@@ -106,6 +106,31 @@ a previous call, without affecting effects registered directly via `on()`.
 - THEN the first setup's effects are gone
 - AND the `on()` registration for `"F"` remains
 
+### Requirement: Global toggle and macro guard
+The system SHALL provide `animfx.disable()` and `animfx.enable()` to turn all
+animfx effects off and back on, and `animfx.is_enabled()` to report the toggle
+state. While disabled, emitting an event SHALL still fire (so other `User`
+listeners and introspection are unaffected) but animfx effects SHALL NOT run.
+By default animfx effects SHALL also be skipped while a macro is being recorded
+or replayed; setting `vim.g.animfx_animate_in_macros` truthy opts back in.
+
+#### Scenario: Disable suppresses effects
+- GIVEN an effect registered for `"E"`
+- WHEN `animfx.disable()` is called and `"E"` is emitted
+- THEN the effect does not run
+- AND `animfx.is_enabled()` is false
+
+#### Scenario: Enable restores effects
+- GIVEN animfx was disabled
+- WHEN `animfx.enable()` is called and `"E"` is emitted
+- THEN the effect runs
+
+#### Scenario: Effects are skipped during a macro
+- GIVEN an effect registered for `"E"` and a macro being recorded
+- WHEN `"E"` is emitted
+- THEN the effect does not run
+- AND setting `vim.g.animfx_animate_in_macros` truthy lets it run
+
 ### Requirement: Synchronous by default, optionally scheduled
 The system SHALL run effects synchronously by default so callers observe them
 before `emit` returns, and SHALL defer them to the next event-loop tick when

@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   through the registry (see `examples/yank-highlight.lua`).
 - `effects.blink` (flash a line on/off N times) and `effects.virt_badge`
   (end-of-line virtual-text label that clears after a duration).
+- `animfx.enable()` / `animfx.disable()` / `animfx.is_enabled()` global switch.
+  Effects are also skipped during macro record/replay by default
+  (`vim.g.animfx_animate_in_macros` opts back in).
 
 ## [0.2.0] - 2026-07-04
 

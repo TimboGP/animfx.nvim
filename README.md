@@ -86,7 +86,17 @@ animfx.list()
 
 --- Recent emits (bounded ring buffer), oldest first: { event, at }.
 animfx.history()
+
+--- Global on/off switch. While disabled, events still fire (other User
+--- listeners and introspection are unaffected) but effects no-op.
+animfx.disable()
+animfx.enable()
+animfx.is_enabled()
 ```
+
+By default effects are skipped while a macro is recording or replaying (so an
+animation doesn't fire dozens of times during `@q`). Set
+`vim.g.animfx_animate_in_macros = true` to opt back in.
 
 ### Commands
 

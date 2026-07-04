@@ -188,6 +188,49 @@ do
   )
 end
 
+do
+  local ran = 0
+  animfx.on("TestToggle", function()
+    ran = ran + 1
+  end)
+  animfx.disable()
+  animfx.emit("TestToggle", {})
+  check(
+    "registry: Global toggle and macro guard",
+    "disable suppresses effects",
+    ran == 0 and animfx.is_enabled() == false
+  )
+  animfx.enable()
+  animfx.emit("TestToggle", {})
+  check(
+    "registry: Global toggle and macro guard",
+    "enable restores effects",
+    ran == 1 and animfx.is_enabled() == true
+  )
+end
+
+do
+  local ran = 0
+  animfx.on("TestMacroGuard", function()
+    ran = ran + 1
+  end)
+  local scratch = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_set_current_buf(scratch)
+  vim.cmd("normal! qq") -- start recording into register q
+  animfx.emit("TestMacroGuard", {})
+  local suppressed = ran == 0
+  vim.g.animfx_animate_in_macros = true
+  animfx.emit("TestMacroGuard", {})
+  local opted_in = ran == 1
+  vim.g.animfx_animate_in_macros = nil
+  vim.cmd("normal! q") -- stop recording
+  check(
+    "registry: Global toggle and macro guard",
+    "effects skipped during a macro unless opted in",
+    suppressed and opted_in
+  )
+end
+
 -- effects -----------------------------------------------------------------
 do
   local buf = vim.api.nvim_create_buf(false, true)
