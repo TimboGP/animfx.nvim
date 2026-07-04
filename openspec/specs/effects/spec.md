@@ -145,6 +145,18 @@ no-op on empty text and clamp `data.line` into the buffer.
 - THEN end-of-line virtual text is shown on that line
 - AND it is removed after the duration
 
+### Requirement: Shake
+The system SHALL provide `shake(opts)` that opens a small floating cue at the
+cursor and jitters it horizontally `opts.times` times before closing it — a
+best-effort "shake" (Neovim cannot move a non-floating window). It SHALL use a
+tracked timer so it is cancelled on exit.
+
+#### Scenario: Shake opens then closes
+- GIVEN `shake({ times = 4, interval = 20 })`
+- WHEN the effect is called
+- THEN a floating window at the cursor is opened
+- AND it is closed after the jitter finishes
+
 ### Requirement: Notify toast
 The system SHALL provide `notify_toast(opts)` that shows a message via
 nvim-notify with `opts` merged over `{ animate = true }`, using `data.msg`

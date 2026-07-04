@@ -438,6 +438,27 @@ do
 end
 
 do
+  -- Smoke test: shake opens a floating cue and closes it. The jitter itself is
+  -- verified visually, not here.
+  local function floats()
+    local n = 0
+    for _, w in ipairs(vim.api.nvim_list_wins()) do
+      if vim.api.nvim_win_get_config(w).relative ~= "" then
+        n = n + 1
+      end
+    end
+    return n
+  end
+  local before = floats()
+  effects.shake({ times = 4, interval = 15 })({})
+  check("effects: Shake", "shake opens a floating cue", floats() == before + 1)
+  vim.wait(WAIT, function()
+    return floats() == before
+  end)
+  check("effects: Shake", "shake closes the cue after jittering", floats() == before)
+end
+
+do
   -- With no nvim-notify (guaranteed under --clean), notify_toast must fall back.
   local captured
   local orig = vim.notify

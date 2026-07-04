@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - More sources: `sources.on_diagnostic()` (emits `"Diagnostic"` with
   `{ buf, count }`) and `sources.on_search()` (wraps `n`/`N`, emits `"Search"`
   with the landing position).
+- `effects.shake` — jitters a floating cue at the cursor (best-effort error
+  feedback; Neovim can't move a non-floating window).
 
 ## [0.2.0] - 2026-07-04
 

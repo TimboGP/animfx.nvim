@@ -117,6 +117,12 @@ virt_badge({opts})                              *animfx.effects.virt_badge()*
     Show `data.text` (or `data.msg`) as end-of-line virtual text, clearing
     after `opts.duration` ms (default 1500). `data`: `{ buf?, line?, text }`.
 
+shake({opts})                                        *animfx.effects.shake()*
+    Jitter a small floating cue at the cursor `opts.times` times — a
+    best-effort "shake" for error feedback (Neovim cannot move a non-floating
+    window). `opts`: `{ hl, text, amplitude, times, interval, width }`.
+    `data`: `{}`.
+
 notify_toast({opts})                          *animfx.effects.notify_toast()*
     Animated toast via nvim-notify, falling back to |vim.notify()| when it is
     not installed. `opts` is merged over `{ animate = true }`. `data`:

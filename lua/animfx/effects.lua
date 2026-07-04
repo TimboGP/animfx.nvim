@@ -403,6 +403,73 @@ function M.virt_badge(opts)
   end
 end
 
+--- Shake a small floating cue at the cursor — a best-effort "shake" for errors.
+--- Neovim can't move a non-floating window, so this jitters a floating box
+--- instead. Optionally shows `opts.text`.
+---
+---@param opts? { hl?: string, text?: string, amplitude?: integer, times?: integer, interval?: integer, width?: integer }
+---  hl        Highlight group (default "ErrorMsg").
+---  text      Optional label shown in the box (default none).
+---  amplitude Horizontal jitter in columns (default 2).
+---  times     Number of jitters (default 6).
+---  interval  Milliseconds per jitter (default 30).
+---  width     Box width in cells (default 6).
+---@return fun(data: table)
+function M.shake(opts)
+  opts = opts or {}
+  local hl = opts.hl or "ErrorMsg"
+  local text = opts.text or ""
+  local amplitude = opts.amplitude or 2
+  local times = opts.times or 6
+  local interval = opts.interval or 30
+  local width = math.max(opts.width or 6, #text + 2)
+  local scratch = vim.api.nvim_create_buf(false, true)
+
+  return function()
+    if not vim.api.nvim_buf_is_valid(scratch) then
+      scratch = vim.api.nvim_create_buf(false, true)
+    end
+    if text ~= "" then
+      vim.api.nvim_buf_set_lines(scratch, 0, -1, false, { " " .. text .. " " })
+    end
+    local ok, win = pcall(vim.api.nvim_open_win, scratch, false, {
+      relative = "cursor",
+      row = 0,
+      col = 0,
+      width = width,
+      height = 1,
+      style = "minimal",
+      focusable = false,
+      noautocmd = true,
+      zindex = 200,
+    })
+    if not ok then
+      return
+    end
+    vim.wo[win].winhl = "Normal:" .. hl
+
+    -- Alternate the horizontal offset to jitter, ending back at 0 then close.
+    local step = 0
+    local timer = managed_timer()
+    timer:start(
+      interval,
+      interval,
+      vim.schedule_wrap(function()
+        step = step + 1
+        if step > times or not vim.api.nvim_win_is_valid(win) then
+          release_timer(timer)
+          if vim.api.nvim_win_is_valid(win) then
+            pcall(vim.api.nvim_win_close, win, true)
+          end
+          return
+        end
+        local col = (step % 2 == 1) and amplitude or 0
+        pcall(vim.api.nvim_win_set_config, win, { relative = "cursor", row = 0, col = col })
+      end)
+    )
+  end
+end
+
 --- Generic backend adapter: delegate to another plugin's function, degrading
 --- gracefully when it isn't installed. This is how an existing engine
 --- (pulsar.nvim, mini.animate, ...) becomes an animfx effect so one registry

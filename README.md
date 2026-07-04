@@ -144,6 +144,11 @@ fx.blink({ hl = "IncSearch", times = 3, interval = 100 })
 fx.virt_badge({ hl = "Comment", duration = 1500 })
 --   data: { buf?, line?, text }  (or `msg`)
 
+-- Shake a floating cue at the cursor (best-effort; Neovim can't move the
+-- real window). Good for error feedback.
+fx.shake({ hl = "ErrorMsg", times = 6, amplitude = 2 })
+--   data: {}  (positions at the cursor)
+
 -- Animated toast via nvim-notify (falls back to vim.notify if absent).
 fx.notify_toast({ title = "Harpoon", timeout = 2000 })
 --   data: { msg?, level? }  — opts are merged over { animate = true }
