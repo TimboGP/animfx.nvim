@@ -150,6 +150,27 @@ animfx.on("BigJump", fx.delegate({
 }))
 ```
 
+## Event sources
+
+`require("animfx.sources")` provides curated, opt-in adapters that emit animfx
+events from common Neovim happenings — so effects work without wiring `emit`
+yourself. These are deliberately specific (not a general autocmd wrapper).
+
+**Recipe — yank highlight** (reimplements `vim.highlight.on_yank` through the
+registry):
+
+```lua
+local animfx = require("animfx")
+local fx = require("animfx.effects")
+
+require("animfx.sources").on_yank()          -- emits "Yank" with the yanked range
+animfx.on("Yank", fx.range_flash({ hl = "IncSearch", duration = 150 }))
+```
+
+`on_yank({ event = "Yank" })` fires on every yank with
+`{ buf, start_row, start_col, end_row, end_col }`; `range_flash` with no
+explicit range picks up the `'[` / `']` marks, so the two compose directly.
+
 ## Combinators
 
 `require("animfx.combinators")` composes effects — each takes effect

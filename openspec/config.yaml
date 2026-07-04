@@ -26,7 +26,7 @@ context: |
   plenary; CI on stable + nightly. stylua + luacheck for local dev.
 
   Capabilities map to modules: registry, effects, combinators, introspection,
-  remote.
+  remote, sources.
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.

@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   registrations without affecting `on()` calls.
 - `effects.range_flash` highlights an arbitrary column-aware range, falling
   back to the `'[` / `']` change marks; clamps out-of-range coordinates.
+- `animfx.sources` — curated, opt-in adapters that emit animfx events from
+  Neovim happenings. First source: `on_yank()` (emits `"Yank"` with the yanked
+  range). Combined with `range_flash`, this reimplements yank highlighting
+  through the registry (see `examples/yank-highlight.lua`).
 
 ## [0.2.0] - 2026-07-04
 

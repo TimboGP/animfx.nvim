@@ -560,6 +560,40 @@ do
   )
 end
 
+-- sources -----------------------------------------------------------------
+do
+  require("animfx.sources").on_yank({ event = "TestYankSrc" })
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "hello", "world" })
+  vim.api.nvim_set_current_buf(buf)
+  local got
+  animfx.on("TestYankSrc", function(d)
+    got = d
+  end)
+  vim.cmd("normal! ggVGy") -- yank both lines
+  check(
+    "sources: Yank source",
+    "on_yank emits the buffer and yanked range",
+    got ~= nil and got.buf == buf and got.start_row == 0 and got.end_row == 1
+  )
+end
+
+do
+  -- The yank-highlight vertical slice: on_yank + range_flash.
+  require("animfx.sources").on_yank({ event = "TestYankFx" })
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "abc", "def" })
+  vim.api.nvim_set_current_buf(buf)
+  animfx.on("TestYankFx", effects.range_flash({ duration = 10 }))
+  local ns = vim.api.nvim_create_namespace("animfx_range_flash")
+  vim.cmd("normal! ggVGy")
+  check(
+    "sources: Yank source",
+    "on_yank + range_flash highlights the yanked text",
+    #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) >= 1
+  )
+end
+
 -- Spec-to-test coverage gate ----------------------------------------------
 -- Requirements coverable only by tests/integration/run.sh (real backends,
 -- multi-process, or checkhealth UI), not by this headless unit runner.

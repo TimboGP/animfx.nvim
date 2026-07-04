@@ -7,9 +7,10 @@ CONTENTS                                                    *animfx-contents*
   2. API .................................... |animfx-api|
   3. Effects ................................ |animfx-effects|
   4. Combinators ............................ |animfx-combinators|
-  5. Commands ............................... |animfx-commands|
-  6. Cross-layer events ..................... |animfx-remote|
-  7. Health ................................. |animfx-health|
+  5. Event sources .......................... |animfx-sources|
+  6. Commands ............................... |animfx-commands|
+  7. Cross-layer events ..................... |animfx-remote|
+  8. Health ................................. |animfx-health|
 
 ==============================================================================
 1. INTRODUCTION                                         *animfx-introduction*
@@ -132,7 +133,23 @@ settles: >lua
     animfx.on("HarpoonAdd", c.debounce(200, fx.line_flash({ hl = "IncSearch" })))
 <
 ==============================================================================
-5. COMMANDS                                                *animfx-commands*
+5. EVENT SOURCES                                            *animfx-sources*
+
+`require("animfx.sources")` provides curated, opt-in adapters that emit animfx
+events from common Neovim happenings, so effects work without wiring `emit`
+yourself. These are deliberately specific — not a general autocmd wrapper.
+
+on_yank({opts})                                *animfx.sources.on_yank()*
+    On |TextYankPost|, emit an animfx event ({opts.event}, default "Yank")
+    carrying `{ buf, start_row, start_col, end_row, end_col }` for the yanked
+    text. Composes with |animfx.effects.range_flash()|. Recipe — reimplement
+    yank highlighting through the registry: >lua
+        require("animfx.sources").on_yank()
+        require("animfx").on("Yank",
+          require("animfx.effects").range_flash({ hl = "IncSearch" }))
+<
+==============================================================================
+6. COMMANDS                                                *animfx-commands*
 
                                                                  *:AnimfxList*
 :AnimfxList             List registered events and their effect counts.
@@ -145,7 +162,7 @@ settles: >lua
 :AnimfxHistory          Show recent emits with timestamps.
 
 ==============================================================================
-6. CROSS-LAYER EVENTS                                        *animfx-remote*
+7. CROSS-LAYER EVENTS                                        *animfx-remote*
 
 `require("animfx.remote")` lets external processes emit into a running Neovim
 over its RPC socket — a sink for window-manager / multiplexer events.
@@ -163,7 +180,7 @@ Ready-to-wire AeroSpace and tmux hook scripts live in the plugin's
 `examples/` directory.
 
 ==============================================================================
-7. HEALTH                                                    *animfx-health*
+8. HEALTH                                                    *animfx-health*
 
 Run `:checkhealth animfx` to confirm the core is loaded and whether
 nvim-notify is available (affecting whether |animfx.effects.notify_toast()|
