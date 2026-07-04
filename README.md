@@ -294,6 +294,11 @@ Ready-to-wire hook scripts are in [`examples/`](examples/) for AeroSpace
 (`on-focus-changed`) and tmux (`pane-focus-in`). `remote.remote_expr(event, data)`
 builds the expression string for you.
 
+For the design of richer window-manager / OS-automation producers (AeroSpace,
+Hammerspoon), see
+[docs/cross-layer-integrations.md](docs/cross-layer-integrations.md) — a concept
+doc, not yet a shipped/tested feature.
+
 ## Health & tests
 
 ```vim
