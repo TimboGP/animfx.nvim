@@ -121,6 +121,56 @@ with no dependency on any external animation plugin.
 - THEN a floating window relative to the cursor is opened
 - AND it is closed after the fade completes
 
+### Requirement: Cursor implode
+The system SHALL provide `cursor_implode(opts)` — an inverse pulse that homes in
+on the cursor. It opens a floating window that starts `opts.width` wide (default
+20) and `opts.blend` faint (default 80), then contracts and solidifies onto the
+cursor column over `steps` frames before closing it, with no dependency on any
+external animation plugin.
+
+#### Scenario: Implode opens then closes
+- GIVEN `cursor_implode({ duration = 220, steps = 10 })`
+- WHEN the effect is called
+- THEN a floating window relative to the cursor is opened
+- AND it is closed after the convergence completes
+
+### Requirement: Cursor ripple
+The system SHALL provide `cursor_ripple(opts)` — an expanding pulse that starts
+tight on the cursor and grows outward to `opts.width` (default 24) while fading,
+over `steps` frames, before closing it, with no dependency on any external
+animation plugin.
+
+#### Scenario: Ripple opens then closes
+- GIVEN `cursor_ripple({ duration = 240, steps = 10 })`
+- WHEN the effect is called
+- THEN a floating window relative to the cursor is opened
+- AND it is closed after the expansion completes
+
+### Requirement: Column sweep
+The system SHALL provide `column_sweep(opts)` that sweeps an `opts.width`-cell
+(default 8) highlighted band across a line from start to end over `steps` frames
+(default 12), then clears it. It SHALL clamp `data.line` into the buffer, no-op
+on an empty line, and use a tracked timer so it is cancelled on exit.
+
+#### Scenario: Sweep appears then clears
+- GIVEN `column_sweep({ width = 4, duration = 60, steps = 4 })`
+- WHEN the effect is called for a valid buffer and non-empty line
+- THEN a highlighted band is visible immediately
+- AND no highlight remains once the sweep finishes
+
+### Requirement: Breathe
+The system SHALL provide `breathe(opts)` that swells a line's background from
+Normal toward `opts.hl`'s background (default "Visual") and recedes back over
+`steps` frames (default 12), then clears. When `opts.hl` has no background it
+SHALL fall back to a plain hold-then-clear flash. It SHALL clamp `data.line`
+into the buffer and use a tracked timer so it is cancelled on exit.
+
+#### Scenario: Breathe appears then clears
+- GIVEN `breathe({ duration = 60, steps = 4 })`
+- WHEN the effect is called for a valid buffer and line
+- THEN the line highlight is visible immediately
+- AND no highlight remains once the breathe finishes
+
 ### Requirement: Blink
 The system SHALL provide `blink(opts)` that flashes a line's highlight on and
 off `opts.times` times (default 3) at `opts.interval` ms (default 100), then

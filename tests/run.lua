@@ -410,6 +410,46 @@ do
     return floats() == before
   end)
   check("effects: Cursor beacon", "cursor_beacon closes the float", floats() == before)
+
+  before = floats()
+  effects.cursor_implode({ duration = 30, steps = 3 })({})
+  check("effects: Cursor implode", "cursor_implode opens a floating window", floats() == before + 1)
+  vim.wait(WAIT, function()
+    return floats() == before
+  end)
+  check("effects: Cursor implode", "cursor_implode closes the float", floats() == before)
+
+  before = floats()
+  effects.cursor_ripple({ duration = 30, steps = 3 })({})
+  check("effects: Cursor ripple", "cursor_ripple opens a floating window", floats() == before + 1)
+  vim.wait(WAIT, function()
+    return floats() == before
+  end)
+  check("effects: Cursor ripple", "cursor_ripple closes the float", floats() == before)
+end
+
+do
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "hello world" })
+  local ns = vim.api.nvim_create_namespace("animfx_column_sweep")
+  effects.column_sweep({ width = 4, duration = 60, steps = 4 })({ buf = buf, line = 0 })
+  check("effects: Column sweep", "column_sweep shows a band", #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) >= 1)
+  vim.wait(WAIT, function()
+    return #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0
+  end)
+  check("effects: Column sweep", "column_sweep clears after finishing", #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0)
+end
+
+do
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "one", "two" })
+  local ns = vim.api.nvim_create_namespace("animfx_breathe")
+  effects.breathe({ duration = 60, steps = 4 })({ buf = buf, line = 0 })
+  check("effects: Breathe", "breathe starts visible", #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) >= 1)
+  vim.wait(WAIT, function()
+    return #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0
+  end)
+  check("effects: Breathe", "breathe clears after finishing", #vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {}) == 0)
 end
 
 do
