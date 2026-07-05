@@ -304,6 +304,173 @@ function M.cursor_beacon(opts)
   end
 end
 
+--- An inverse pulse that homes in on the cursor: a floating box that starts
+--- wide and faint, then contracts and solidifies onto the cursor position. Where
+--- `cursor_beacon` expands and fades *out*, this converges and fades *in* — a
+--- "here" cue that draws the eye to where the cursor just landed.
+---
+--- Dependency-free, same floating-window mechanism as `cursor_beacon`.
+---
+---@param opts? { hl?: string, width?: integer, duration?: integer, steps?: integer, blend?: integer }
+---  hl       Highlight group for the pulse (default "Search").
+---  width    Starting (widest) width in cells (default 20).
+---  duration Total convergence time in ms (default 220).
+---  steps    Animation frames (default 10).
+---  blend    Starting winblend of the wide box, 0-100 (default 80); it lands at 0.
+---@return fun(data: table)
+function M.cursor_implode(opts)
+  opts = opts or {}
+  local hl = opts.hl or "Search"
+  local width = math.max(opts.width or 20, 1)
+  local ms = opts.duration or 220
+  local steps = math.max(opts.steps or 10, 1)
+  local start_blend = math.max(0, math.min(opts.blend or 80, 100))
+  -- One reusable scratch buffer for every pulse this constructor makes.
+  local scratch = vim.api.nvim_create_buf(false, true)
+
+  -- Width and centering offset for a given frame: at frame 0 the box is full
+  -- width and centered on the cursor; by the last frame it's a single cell
+  -- sitting on the cursor column.
+  local function geometry(frame)
+    local p = frame / steps
+    local w = math.max(1, math.floor(width * (1 - p) + 0.5))
+    return w, -math.floor(w / 2)
+  end
+
+  return function()
+    if not vim.api.nvim_buf_is_valid(scratch) then
+      scratch = vim.api.nvim_create_buf(false, true)
+    end
+    local w0, col0 = geometry(0)
+    local ok, win = pcall(vim.api.nvim_open_win, scratch, false, {
+      relative = "cursor",
+      row = 0,
+      col = col0,
+      width = w0,
+      height = 1,
+      style = "minimal",
+      focusable = false,
+      noautocmd = true,
+      zindex = 200,
+    })
+    if not ok then
+      return
+    end
+    vim.wo[win].winhl = "Normal:" .. hl
+    vim.wo[win].winblend = start_blend
+
+    local frame = 0
+    local interval = math.max(1, math.floor(ms / steps))
+    local timer = managed_timer()
+    timer:start(
+      interval,
+      interval,
+      vim.schedule_wrap(function()
+        frame = frame + 1
+        if frame >= steps or not vim.api.nvim_win_is_valid(win) then
+          release_timer(timer)
+          if vim.api.nvim_win_is_valid(win) then
+            pcall(vim.api.nvim_win_close, win, true)
+          end
+          return
+        end
+        local w, col = geometry(frame)
+        -- Interpolate blend from start_blend toward 0 so the box solidifies as
+        -- it converges — the "landing" cue.
+        vim.wo[win].winblend = math.floor(start_blend * (1 - frame / steps))
+        pcall(vim.api.nvim_win_set_config, win, {
+          relative = "cursor",
+          row = 0,
+          col = col,
+          width = w,
+          height = 1,
+        })
+      end)
+    )
+  end
+end
+
+--- An expanding ripple at the cursor: a floating box that starts tight on the
+--- cursor and grows outward while fading — a dissipating ring. The outward twin
+--- of `cursor_implode` (which converges inward).
+---
+--- Dependency-free, same floating-window mechanism as `cursor_beacon`.
+---
+---@param opts? { hl?: string, width?: integer, duration?: integer, steps?: integer }
+---  hl       Highlight group for the ripple (default "Search").
+---  width    Final (widest) width in cells (default 24).
+---  duration Total expansion time in ms (default 240).
+---  steps    Animation frames (default 10).
+---@return fun(data: table)
+function M.cursor_ripple(opts)
+  opts = opts or {}
+  local hl = opts.hl or "Search"
+  local width = math.max(opts.width or 24, 1)
+  local ms = opts.duration or 240
+  local steps = math.max(opts.steps or 10, 1)
+  -- One reusable scratch buffer for every ripple this constructor makes.
+  local scratch = vim.api.nvim_create_buf(false, true)
+
+  -- Width and centering offset for a given frame: a single cell on the cursor
+  -- at frame 0, growing to full width centered on the cursor by the last frame.
+  local function geometry(frame)
+    local p = frame / steps
+    local w = math.max(1, math.floor(width * p + 0.5))
+    return w, -math.floor(w / 2)
+  end
+
+  return function()
+    if not vim.api.nvim_buf_is_valid(scratch) then
+      scratch = vim.api.nvim_create_buf(false, true)
+    end
+    local w0, col0 = geometry(0)
+    local ok, win = pcall(vim.api.nvim_open_win, scratch, false, {
+      relative = "cursor",
+      row = 0,
+      col = col0,
+      width = w0,
+      height = 1,
+      style = "minimal",
+      focusable = false,
+      noautocmd = true,
+      zindex = 200,
+    })
+    if not ok then
+      return
+    end
+    vim.wo[win].winhl = "Normal:" .. hl
+    vim.wo[win].winblend = 0
+
+    local frame = 0
+    local interval = math.max(1, math.floor(ms / steps))
+    local timer = managed_timer()
+    timer:start(
+      interval,
+      interval,
+      vim.schedule_wrap(function()
+        frame = frame + 1
+        if frame >= steps or not vim.api.nvim_win_is_valid(win) then
+          release_timer(timer)
+          if vim.api.nvim_win_is_valid(win) then
+            pcall(vim.api.nvim_win_close, win, true)
+          end
+          return
+        end
+        local w, col = geometry(frame)
+        -- Fade out as it grows — the ring dissipating outward.
+        vim.wo[win].winblend = math.floor(100 * frame / steps)
+        pcall(vim.api.nvim_win_set_config, win, {
+          relative = "cursor",
+          row = 0,
+          col = col,
+          width = w,
+          height = 1,
+        })
+      end)
+    )
+  end
+end
+
 --- Flash a line's highlight on and off `times` times, then leave it cleared.
 ---
 ---@param opts? { hl?: string, times?: integer, interval?: integer }
@@ -358,6 +525,152 @@ function M.blink(opts)
           release_timer(timer)
           set_off()
         end
+      end)
+    )
+  end
+end
+
+--- Sweep a highlighted band across a line, left to right, then clear it — a
+--- scanner-style wipe. The band is `opts.width` cells wide and travels from the
+--- start of the line to past its end over `steps` frames.
+---
+---@param opts? { hl?: string, width?: integer, duration?: integer, steps?: integer }
+---  hl       Highlight group for the band (default "Search").
+---  width    Band width in cells (default 8).
+---  duration Total sweep time in ms (default 240).
+---  steps    Animation frames (default 12).
+---@return fun(data: { buf?: integer, line?: integer })
+function M.column_sweep(opts)
+  opts = opts or {}
+  local hl = opts.hl or "Search"
+  local width = math.max(opts.width or 8, 1)
+  local ms = opts.duration or 240
+  local steps = math.max(opts.steps or 12, 1)
+  local ns = vim.api.nvim_create_namespace("animfx_column_sweep")
+
+  return function(data)
+    data = data or {}
+    local buf = data.buf or vim.api.nvim_get_current_buf()
+    if not vim.api.nvim_buf_is_valid(buf) then
+      return
+    end
+    local line = clamp_line(buf, data.line or (vim.api.nvim_win_get_cursor(0)[1] - 1))
+    local len = #(vim.api.nvim_buf_get_lines(buf, line, line + 1, false)[1] or "")
+    if len == 0 then
+      return
+    end
+
+    local id
+    -- Position (or clear) the band between two columns, clamped to the line.
+    local function place(sc, ec)
+      sc = math.max(0, math.min(sc, len))
+      ec = math.max(0, math.min(ec, len))
+      if ec <= sc then
+        if id then
+          pcall(vim.api.nvim_buf_del_extmark, buf, ns, id)
+          id = nil
+        end
+        return
+      end
+      local ok, new = pcall(vim.api.nvim_buf_set_extmark, buf, ns, line, sc, {
+        id = id,
+        end_col = ec,
+        hl_group = hl,
+      })
+      if ok then
+        id = new
+      end
+    end
+
+    place(0, width)
+    local frame = 0
+    local interval = math.max(1, math.floor(ms / steps))
+    local timer = managed_timer()
+    timer:start(
+      interval,
+      interval,
+      vim.schedule_wrap(function()
+        frame = frame + 1
+        if frame >= steps or not vim.api.nvim_buf_is_valid(buf) then
+          release_timer(timer)
+          if vim.api.nvim_buf_is_valid(buf) and id then
+            pcall(vim.api.nvim_buf_del_extmark, buf, ns, id)
+          end
+          return
+        end
+        -- Leading edge marches from the start of the line to its end.
+        local start = math.floor(len * frame / steps + 0.5)
+        place(start, start + width)
+      end)
+    )
+  end
+end
+
+--- Breathe a line's background: swell from Normal toward `hl`'s background and
+--- recede back over `steps` frames — a soft in-and-out glow. Falls back to a
+--- plain hold-then-clear flash when `hl` has no background color.
+---
+---@param opts? { hl?: string, duration?: integer, steps?: integer }
+---  hl       Highlight group whose background to swell toward (default "Visual").
+---  duration Total breathe time in ms (default 500).
+---  steps    Animation frames (default 12).
+---@return fun(data: { buf?: integer, line?: integer })
+function M.breathe(opts)
+  opts = opts or {}
+  local hl = opts.hl or "Visual"
+  local ms = opts.duration or 500
+  local steps = math.max(opts.steps or 12, 2)
+  local ns = vim.api.nvim_create_namespace("animfx_breathe")
+
+  return function(data)
+    data = data or {}
+    local buf = data.buf or vim.api.nvim_get_current_buf()
+    if not vim.api.nvim_buf_is_valid(buf) then
+      return
+    end
+    local line = clamp_line(buf, data.line or (vim.api.nvim_win_get_cursor(0)[1] - 1))
+
+    local to = bg_of(hl)
+    if not to then
+      -- No background to blend: hold the plain highlight briefly, then clear.
+      local id = vim.api.nvim_buf_set_extmark(buf, ns, line, 0, { line_hl_group = hl })
+      vim.defer_fn(function()
+        if vim.api.nvim_buf_is_valid(buf) then
+          pcall(vim.api.nvim_buf_del_extmark, buf, ns, id)
+        end
+      end, ms)
+      return
+    end
+    local from = bg_of("Normal") or 0x000000
+
+    fade_seq = fade_seq + 1
+    local fid = fade_seq
+    -- Start invisible (alpha 0 == Normal) so the swell eases in from nothing.
+    local group0 = ("AnimfxBreathe%d_0"):format(fid)
+    vim.api.nvim_set_hl(0, group0, { bg = from })
+    local id = vim.api.nvim_buf_set_extmark(buf, ns, line, 0, { line_hl_group = group0 })
+
+    local frame = 0
+    local interval = math.max(1, math.floor(ms / steps))
+    local timer = managed_timer()
+    timer:start(
+      interval,
+      interval,
+      vim.schedule_wrap(function()
+        frame = frame + 1
+        if frame >= steps or not vim.api.nvim_buf_is_valid(buf) then
+          release_timer(timer)
+          if vim.api.nvim_buf_is_valid(buf) then
+            pcall(vim.api.nvim_buf_del_extmark, buf, ns, id)
+          end
+          return
+        end
+        -- Triangular alpha: rises to 1 at the midpoint, falls back to 0.
+        local t = frame / steps
+        local alpha = 1 - math.abs(2 * t - 1)
+        local group = ("AnimfxBreathe%d_%d"):format(fid, frame)
+        vim.api.nvim_set_hl(0, group, { bg = blend(to, from, alpha) })
+        pcall(vim.api.nvim_buf_set_extmark, buf, ns, line, 0, { id = id, line_hl_group = group })
       end)
     )
   end

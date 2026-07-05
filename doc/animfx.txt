@@ -109,6 +109,26 @@ cursor_beacon({opts})                        *animfx.effects.cursor_beacon()*
     A pulse at the cursor: a small floating window that fades out.
     Dependency-free. `data`: `{}`.
 
+cursor_implode({opts})                      *animfx.effects.cursor_implode()*
+    An inverse pulse that homes in on the cursor: a floating box that starts
+    `opts.width` wide (default 20) and `opts.blend` faint (default 80), then
+    contracts and solidifies onto the cursor. The reverse of cursor_beacon.
+    Dependency-free. `data`: `{}`.
+
+cursor_ripple({opts})                        *animfx.effects.cursor_ripple()*
+    An expanding pulse: a floating box that starts tight on the cursor and
+    grows outward to `opts.width` (default 24) while fading. The outward twin
+    of cursor_implode. Dependency-free. `data`: `{}`.
+
+column_sweep({opts})                          *animfx.effects.column_sweep()*
+    Sweep an `opts.width`-cell (default 8) highlighted band across a line from
+    start to end, then clear — a scanner wipe. `data`: `{ buf?, line? }`.
+
+breathe({opts})                                    *animfx.effects.breathe()*
+    Swell a line's background from Normal toward `opts.hl`'s background
+    (default "Visual") and recede back, then clear — a soft glow. Falls back
+    to a plain flash when `opts.hl` has no background. `data`: `{ buf?, line? }`.
+
 blink({opts})                                        *animfx.effects.blink()*
     Flash a line's highlight on and off `opts.times` times (default 3) at
     `opts.interval` ms (default 100), then clear. `data`: `{ buf?, line? }`.

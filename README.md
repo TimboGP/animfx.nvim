@@ -136,6 +136,24 @@ fx.sign_flash({ text = "▐", hl = "IncSearch", duration = 300 })
 fx.cursor_beacon({ hl = "Search", width = 10, duration = 220 })
 --   data: {}  (positions at the cursor)
 
+-- Inverse pulse — a wide, faint box that contracts and solidifies onto the
+-- cursor, honing in on where it just landed. The reverse of cursor_beacon.
+fx.cursor_implode({ hl = "Search", width = 20, duration = 220 })
+--   data: {}  (positions at the cursor)
+
+-- Expanding ripple — a box that grows outward from the cursor while fading, a
+-- dissipating ring. The outward twin of cursor_implode.
+fx.cursor_ripple({ hl = "Search", width = 24, duration = 240 })
+--   data: {}  (positions at the cursor)
+
+-- Column sweep — a highlighted band that scans left→right across the line.
+fx.column_sweep({ hl = "Search", width = 8, duration = 240 })
+--   data: { buf?, line? }
+
+-- Breathe — swell a line's background toward a color and recede: a soft glow.
+fx.breathe({ hl = "Visual", duration = 500 })
+--   data: { buf?, line? }
+
 -- Flash a line on/off N times, then clear.
 fx.blink({ hl = "IncSearch", times = 3, interval = 100 })
 --   data: { buf?, line? }

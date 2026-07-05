@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-07-05
+
+### Added
+- `effects.cursor_implode` — an inverse pulse that homes in on the cursor: a
+  wide, faint floating box that contracts and solidifies onto the cursor
+  position. The reverse of `cursor_beacon`.
+- `effects.cursor_ripple` — an expanding pulse that grows outward from the
+  cursor while fading (a dissipating ring); the outward twin of
+  `cursor_implode`.
+- `effects.column_sweep` — a highlighted band that scans left→right across a
+  line, then clears.
+- `effects.breathe` — swells a line's background toward a color and recedes
+  back, a soft in-and-out glow; falls back to a plain flash when the highlight
+  group has no background.
+
 ## [0.3.0] - 2026-07-04
 
 ### Added
@@ -92,7 +107,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Headless test suite and CI on Neovim stable + nightly; stylua / luacheck
   config.
 
-[Unreleased]: https://github.com/TimboGP/animfx.nvim/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/TimboGP/animfx.nvim/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/TimboGP/animfx.nvim/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/TimboGP/animfx.nvim/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/TimboGP/animfx.nvim/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/TimboGP/animfx.nvim/releases/tag/v0.1.0
