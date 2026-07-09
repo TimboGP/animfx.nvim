@@ -94,3 +94,17 @@ autocmd rather than stacking.
 - GIVEN `on_build_failure()` is active
 - WHEN a `:make`-style command completes with an empty quickfix list
 - THEN no `"BuildFailed"` event fires
+
+### Requirement: Overseer failure source
+The system SHALL provide `animfx.sources.on_overseer_failure(opts)` that
+hooks overseer.nvim (via `overseer.add_template_hook`, adding a component to
+every task template) so that any overseer task finishing with `FAILURE`
+status emits an animfx event (default `"BuildFailed"`, overridable via
+`opts.event`) carrying `{ task, status }`. When overseer is not installed it
+SHALL no-op without error. Re-calling it SHALL replace the previous hook
+rather than stacking.
+
+#### Scenario: No overseer is a safe no-op
+- GIVEN overseer.nvim is not installed
+- WHEN `on_overseer_failure()` is called
+- THEN it does not raise

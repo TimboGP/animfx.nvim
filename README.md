@@ -204,6 +204,7 @@ sources.on_diagnostic()  -- "Diagnostic" on DiagnosticChanged { buf, count }
 sources.on_search()      -- "Search"     on n / N            { buf, line, col, pattern }
 sources.on_harpoon()     -- "HarpoonAdd" on harpoon add      { buf, value, idx }
 sources.on_build_failure() -- "BuildFailed" on :make-style QuickFixCmdPost { count }
+sources.on_overseer_failure() -- "BuildFailed" on any overseer.nvim task FAILURE { task, status }
 ```
 
 **Recipe — Harpoon add** (the motivating integration; see
@@ -234,11 +235,19 @@ and `hammerspoon-window-mgmt`'s `spoon.WindowMgmt:wiggleFocusedWindow()`; see
 [`examples/hammerspoon-build-failure.lua`](examples/hammerspoon-build-failure.lua)):
 
 ```lua
-require("animfx.sources").on_build_failure()  -- emits "BuildFailed" with { count }
+require("animfx.sources").on_build_failure()     -- emits "BuildFailed" on :make with { count }
+require("animfx.sources").on_overseer_failure()  -- emits "BuildFailed" on any failed overseer task
 require("animfx").on("BuildFailed",
   require("animfx.combinators").debounce(300,
     require("animfx.remote_effects").hammerspoon_wiggle()))
 ```
+
+`on_overseer_failure` is the overseer.nvim-specific twin of `on_build_failure`
+(needed because overseer tasks don't run through `:make` and don't populate
+the quickfix list by default, so `QuickFixCmdPost` never fires for them) — it
+hooks every task template directly via `overseer.add_template_hook` and
+no-ops if overseer isn't installed. Both emit the same `"BuildFailed"` event,
+so wiring in either or both is safe.
 
 ## Combinators
 

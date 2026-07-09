@@ -889,6 +889,14 @@ do
 end
 
 do
+  -- overseer.nvim isn't installed under --clean; on_overseer_failure must
+  -- no-op, not raise. Real "task fails -> emits" behavior needs a live
+  -- overseer task and isn't covered here (no tests/integration harness yet).
+  local ok = pcall(require("animfx.sources").on_overseer_failure, { event = "TestOverseer" })
+  check("sources: Overseer failure source", "no-ops when overseer is absent", ok == true)
+end
+
+do
   require("animfx.sources").on_build_failure({ event = "TestBuildFailure" })
   local got, times = nil, 0
   animfx.on("TestBuildFailure", function(d)

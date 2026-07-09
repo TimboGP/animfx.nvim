@@ -216,6 +216,15 @@ on_build_failure({opts})              *animfx.sources.on_build_failure()*
     "BuildFailed") carrying `{ count }` — the number of quickfix entries.
     Does nothing when the quickfix list is empty (the build succeeded).
 
+on_overseer_failure({opts})        *animfx.sources.on_overseer_failure()*
+    Hook overseer.nvim (via `overseer.add_template_hook`, adding a component
+    to every task template) so any overseer task that finishes with FAILURE
+    status emits an animfx event ({opts.event}, default "BuildFailed")
+    carrying `{ task, status }`. Unlike |animfx.sources.on_build_failure()|,
+    this fires for overseer-run tasks, which don't go through `:make` and
+    don't populate the quickfix list by default. No-ops if overseer isn't
+    installed.
+
 ==============================================================================
 6. COMMANDS                                                *animfx-commands*
 

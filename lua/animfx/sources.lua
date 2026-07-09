@@ -130,4 +130,33 @@ function M.on_build_failure(opts)
   })
 end
 
+-- The add_template_hook function currently registered by on_overseer_failure,
+-- if any — kept so re-calling can remove its own previous hook instead of
+-- stacking a second one on top.
+local overseer_hook = nil
+
+--- Emit an animfx event when any overseer.nvim task finishes with FAILURE
+--- status, carrying `{ task, status }`. Unlike `on_build_failure`, overseer
+--- tasks don't run through `:make` and don't populate the quickfix list by
+--- default, so this hooks overseer directly instead: it adds this module's
+--- `animfx.build_failure` component (see `lua/overseer/component/animfx/`)
+--- to every task template via `overseer.add_template_hook`. No-ops if
+--- overseer is not installed. Re-calling it replaces the previous hook.
+---@param opts? { event?: string } event name to emit (default "BuildFailed").
+function M.on_overseer_failure(opts)
+  opts = opts or {}
+  local event = opts.event or "BuildFailed"
+  local ok, overseer = pcall(require, "overseer")
+  if not ok then
+    return -- overseer not installed: graceful no-op
+  end
+  if overseer_hook then
+    overseer.remove_template_hook(nil, overseer_hook)
+  end
+  overseer_hook = function(task_defn, util)
+    util.add_component(task_defn, { "animfx.build_failure", event = event })
+  end
+  overseer.add_template_hook(nil, overseer_hook)
+end
+
 return M

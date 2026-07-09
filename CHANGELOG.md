@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sine jitter instead of a binary on/off toggle.
 - `sources.on_build_failure` — emits an event when a `:make`-style command
   populates the quickfix list with errors.
+- `sources.on_overseer_failure` — emits an event when any overseer.nvim task
+  finishes with FAILURE status, via a bundled `animfx.build_failure`
+  overseer component; no-ops if overseer isn't installed.
 - `remote_effects.hammerspoon_wiggle` — shells out to Hammerspoon's `hs` CLI
   to wiggle the focused OS window (e.g. on a failed build), via a
   `hammerspoon-window-mgmt` Spoon method.
