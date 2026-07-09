@@ -26,30 +26,12 @@ local fade_seq = 0
 
 -- Repeating animation timers, tracked so any still in flight can be cancelled
 -- on exit rather than leaking or firing a callback into a closing Neovim.
-local active_timers = {}
-
-local function managed_timer()
-  local timer = vim.uv.new_timer()
-  active_timers[timer] = true
-  return timer
-end
-
-local function release_timer(timer)
-  if timer and not timer:is_closing() then
-    timer:stop()
-    timer:close()
-  end
-  active_timers[timer] = nil
-end
-
-vim.api.nvim_create_autocmd("VimLeavePre", {
-  group = vim.api.nvim_create_augroup("animfx_effects_cleanup", { clear = true }),
-  callback = function()
-    for timer in pairs(active_timers) do
-      pcall(release_timer, timer)
-    end
-  end,
-})
+-- Cancellation and the shared tracking table now live in animfx.tween, so
+-- hand-rolled effect timers here and tween-driven ones (see `shake`) are
+-- cleaned up the same way, by the same VimLeavePre hook.
+local tween = require("animfx.tween")
+local managed_timer = tween.managed_timer
+local release_timer = tween.release_timer
 
 -- Linear-interpolate two 24-bit colors; alpha 1 = a, 0 = b.
 local function blend(a, b, alpha)
@@ -716,17 +698,25 @@ function M.virt_badge(opts)
   end
 end
 
---- Shake a small floating cue at the cursor — a best-effort "shake" for errors.
---- Neovim can't move a non-floating window, so this jitters a floating box
---- instead. Optionally shows `opts.text`.
+--- Shake a small floating cue at the cursor — a best-effort "shake" for
+--- errors. Neovim can't move a non-floating window, so this jitters a
+--- floating box instead. Optionally shows `opts.text`. Driven by
+--- `animfx.tween`: a decaying sine wave oscillates the box horizontally
+--- around the cursor and eases back to `col = 0` exactly as it finishes,
+--- rather than snapping between two fixed offsets.
 ---
----@param opts? { hl?: string, text?: string, amplitude?: integer, times?: integer, interval?: integer, width?: integer }
+---@param opts? { hl?: string, text?: string, amplitude?: integer, times?: integer, interval?: integer, width?: integer, frequency?: number, fps?: number }
 ---  hl        Highlight group (default "ErrorMsg").
 ---  text      Optional label shown in the box (default none).
 ---  amplitude Horizontal jitter in columns (default 2).
----  times     Number of jitters (default 6).
----  interval  Milliseconds per jitter (default 30).
+---  times     Number of jitters (default 6); with `interval`, derives the
+---            tween's total duration (`times * interval` ms).
+---  interval  Milliseconds per jitter (default 30); with `times`, derives
+---            duration, and alone derives the sine's default `frequency`.
 ---  width     Box width in cells (default 6).
+---  frequency Oscillations per second (default derived from `interval`, so
+---            the visual cadence roughly matches the old fixed-step jitter).
+---  fps       Tween tick rate in Hz (default 60), independent of `interval`.
 ---@return fun(data: table)
 function M.shake(opts)
   opts = opts or {}
@@ -736,7 +726,17 @@ function M.shake(opts)
   local times = opts.times or 6
   local interval = opts.interval or 30
   local width = math.max(opts.width or 6, #text + 2)
+  -- A full sine cycle (peak -> zero -> trough -> zero) spans two of the old
+  -- fixed-step jitters, keeping the new continuous motion's cadence close to
+  -- the old binary alternation's.
+  local frequency = opts.frequency or 500 / interval
+  local duration = (times * interval) / 1000
+  local fps = opts.fps or 60
   local scratch = vim.api.nvim_create_buf(false, true)
+
+  local function round(x)
+    return x >= 0 and math.floor(x + 0.5) or -math.floor(-x + 0.5)
+  end
 
   return function()
     if not vim.api.nvim_buf_is_valid(scratch) then
@@ -761,25 +761,36 @@ function M.shake(opts)
     end
     vim.wo[win].winhl = "Normal:" .. hl
 
-    -- Alternate the horizontal offset to jitter, ending back at 0 then close.
-    local step = 0
-    local timer = managed_timer()
-    timer:start(
-      interval,
-      interval,
-      vim.schedule_wrap(function()
-        step = step + 1
-        if step > times or not vim.api.nvim_win_is_valid(win) then
-          release_timer(timer)
-          if vim.api.nvim_win_is_valid(win) then
-            pcall(vim.api.nvim_win_close, win, true)
-          end
-          return
+    -- Decaying sine: envelope `1 - t` reaches exactly 0 at t = 1, so the box
+    -- always lands back at col = 0 smoothly instead of snapping there.
+    local function progressFn(t)
+      local envelope = 1 - t
+      local theta = t * duration * frequency * 2 * math.pi
+      return math.sin(theta) * envelope
+    end
+
+    local function setterFn(offset)
+      if not vim.api.nvim_win_is_valid(win) then
+        return false
+      end
+      return pcall(vim.api.nvim_win_set_config, win, {
+        relative = "cursor",
+        row = 0,
+        col = round(amplitude * offset),
+      })
+    end
+
+    tween.run({
+      duration = duration,
+      fps = fps,
+      progressFn = progressFn,
+      setterFn = setterFn,
+      onComplete = function()
+        if vim.api.nvim_win_is_valid(win) then
+          pcall(vim.api.nvim_win_close, win, true)
         end
-        local col = (step % 2 == 1) and amplitude or 0
-        pcall(vim.api.nvim_win_set_config, win, { relative = "cursor", row = 0, col = col })
-      end)
-    )
+      end,
+    })
   end
 end
 
@@ -859,10 +870,11 @@ function M.notify_toast(opts)
   end
 end
 
---- Test hook: number of live managed animation timers.
+--- Test hook: number of live managed animation timers (delegates to
+--- animfx.tween, which owns the shared timer table).
 ---@return integer
 function M._active_timers()
-  return vim.tbl_count(active_timers)
+  return tween._active_timers()
 end
 
 return M

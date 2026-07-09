@@ -10,7 +10,8 @@ CONTENTS                                                    *animfx-contents*
   5. Event sources .......................... |animfx-sources|
   6. Commands ............................... |animfx-commands|
   7. Cross-layer events ..................... |animfx-remote|
-  8. Health ................................. |animfx-health|
+  8. Remote effects ......................... |animfx-remote-effects|
+  9. Health ................................. |animfx-health|
 
 ==============================================================================
 1. INTRODUCTION                                         *animfx-introduction*
@@ -138,9 +139,12 @@ virt_badge({opts})                              *animfx.effects.virt_badge()*
     after `opts.duration` ms (default 1500). `data`: `{ buf?, line?, text }`.
 
 shake({opts})                                        *animfx.effects.shake()*
-    Jitter a small floating cue at the cursor `opts.times` times — a
-    best-effort "shake" for error feedback (Neovim cannot move a non-floating
-    window). `opts`: `{ hl, text, amplitude, times, interval, width }`.
+    Jitter a small floating cue at the cursor with a continuous, decaying
+    sine wave (via the shared `animfx.tween` module) — a best-effort "shake"
+    for error feedback (Neovim cannot move a non-floating window).
+    `opts.times`/`opts.interval` determine the tween's total duration and
+    default oscillation frequency.
+    `opts`: `{ hl, text, amplitude, times, interval, width, frequency, fps }`.
     `data`: `{}`.
 
 notify_toast({opts})                          *animfx.effects.notify_toast()*
@@ -205,6 +209,13 @@ on_harpoon({opts})                          *animfx.sources.on_harpoon()*
     ({opts.event}, default "HarpoonAdd") carrying `{ buf, value, idx }`.
     No-ops if harpoon isn't installed. See `examples/harpoon-add.lua`.
 
+on_build_failure({opts})              *animfx.sources.on_build_failure()*
+    On |QuickFixCmdPost| for any quickfix-populating command whose name
+    contains "make" (`:make`, `:lmake`, and build/test-runner plugins built
+    on top of them), emit an animfx event ({opts.event}, default
+    "BuildFailed") carrying `{ count }` — the number of quickfix entries.
+    Does nothing when the quickfix list is empty (the build succeeded).
+
 ==============================================================================
 6. COMMANDS                                                *animfx-commands*
 
@@ -237,7 +248,22 @@ Ready-to-wire AeroSpace and tmux hook scripts live in the plugin's
 `examples/` directory.
 
 ==============================================================================
-8. HEALTH                                                    *animfx-health*
+8. REMOTE EFFECTS                                    *animfx-remote-effects*
+
+The reverse direction from |animfx-remote|: `require("animfx.remote_effects")`
+provides effects that shell out to another OS process, rather than mutating
+Neovim's own UI — for animating something Neovim itself can't reach, like the
+real OS window running a tiled terminal.
+
+hammerspoon_wiggle({opts})        *animfx.remote_effects.hammerspoon_wiggle()*
+    Return an effect that spawns the `hs` CLI to invoke
+    `spoon.WindowMgmt:wiggleFocusedWindow()` (a `hammerspoon-window-mgmt`
+    Spoon method) — wiggling the OS window that currently has focus.
+    Fire-and-forget; silently no-ops if Hammerspoon isn't running or `hs`
+    isn't installed. See `examples/hammerspoon-build-failure.lua`.
+
+==============================================================================
+9. HEALTH                                                    *animfx-health*
 
 Run `:checkhealth animfx` to confirm the core is loaded and whether
 nvim-notify is available (affecting whether |animfx.effects.notify_toast()|

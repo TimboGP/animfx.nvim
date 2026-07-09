@@ -197,9 +197,15 @@ no-op on empty text and clamp `data.line` into the buffer.
 
 ### Requirement: Shake
 The system SHALL provide `shake(opts)` that opens a small floating cue at the
-cursor and jitters it horizontally `opts.times` times before closing it — a
-best-effort "shake" (Neovim cannot move a non-floating window). It SHALL use a
-tracked timer so it is cancelled on exit.
+cursor and jitters it horizontally before closing it — a best-effort "shake"
+(Neovim cannot move a non-floating window). The jitter SHALL be a continuous,
+decaying sine wave driven by `animfx.tween` (amplitude `opts.amplitude`,
+default 2) that eases back to zero exactly as it finishes, rather than
+snapping between two fixed offsets. `opts.times` and `opts.interval`
+(defaults 6 and 30ms) SHALL determine the tween's total duration and default
+oscillation frequency, so existing callers get approximately the same shake
+duration and cadence as before. It SHALL use a tracked timer so it is
+cancelled on exit.
 
 #### Scenario: Shake opens then closes
 - GIVEN `shake({ times = 4, interval = 20 })`

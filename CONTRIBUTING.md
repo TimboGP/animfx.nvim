@@ -27,8 +27,9 @@ make lint        # luacheck
 1. **Describe the behavior first.** Add or change a requirement in
    `openspec/specs/<capability>/spec.md`. Each requirement uses an RFC 2119
    keyword (SHALL / MUST / SHOULD) and has at least one `#### Scenario:` in
-   GIVEN-WHEN-THEN form. The five capabilities are `registry`, `effects`,
-   `combinators`, `introspection`, `remote`.
+   GIVEN-WHEN-THEN form. The capabilities are `registry`, `effects`,
+   `combinators`, `introspection`, `remote`, `remote_effects`, `sources`,
+   `tween`.
 
 2. **Validate the specs:**
 

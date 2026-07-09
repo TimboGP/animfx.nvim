@@ -72,3 +72,25 @@ for the added item. When harpoon is not installed it SHALL no-op without error.
 - GIVEN harpoon is not installed
 - WHEN `on_harpoon()` is called
 - THEN it does not raise
+
+### Requirement: Build-failure source
+The system SHALL provide `animfx.sources.on_build_failure(opts)` that, on
+`QuickFixCmdPost` for any quickfix-populating command whose name contains
+"make" (`:make`, `:lmake`, and build/test-runner plugins built on top of
+them), emits an animfx event (default `"BuildFailed"`, overridable via
+`opts.event`) carrying `{ count }` — the number of entries in the quickfix
+list the command just populated. When that list is empty (the build
+succeeded) it SHALL NOT emit. Re-calling it SHALL replace the previous
+autocmd rather than stacking.
+
+#### Scenario: Failed build emits with the error count
+- GIVEN `on_build_failure()` is active
+- WHEN a `:make`-style command populates the quickfix list with one or more
+  entries
+- THEN a `"BuildFailed"` event fires
+- AND its data carries the number of quickfix entries
+
+#### Scenario: Successful build does not emit
+- GIVEN `on_build_failure()` is active
+- WHEN a `:make`-style command completes with an empty quickfix list
+- THEN no `"BuildFailed"` event fires

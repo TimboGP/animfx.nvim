@@ -101,4 +101,33 @@ function M.on_harpoon(opts)
   })
 end
 
+--- Emit an animfx event when a `:make`-style command populates the quickfix
+--- list with at least one entry, carrying `{ count }` — the number of
+--- entries. Fires on |QuickFixCmdPost| for any quickfix-populating command
+--- whose name contains "make" (`:make`, `:lmake`, and most build/test-runner
+--- plugins built on top of them). Does nothing when the resulting list is
+--- empty (the build succeeded). Re-calling it replaces the previous autocmd.
+---@param opts? { event?: string } event name to emit (default "BuildFailed").
+function M.on_build_failure(opts)
+  opts = opts or {}
+  local event = opts.event or "BuildFailed"
+  local group = vim.api.nvim_create_augroup("animfx_source_build_failure", { clear = true })
+  vim.api.nvim_create_autocmd("QuickFixCmdPost", {
+    group = group,
+    pattern = "*make*",
+    desc = "animfx: emit " .. event .. " when :make populates quickfix with errors",
+    callback = function()
+      -- getqflist({what}) only returns the keys explicitly requested in
+      -- `what` — omitting `items` here would leave `.items` nil and make
+      -- `#nil` raise inside this autocmd. `items = 0` is the getqflist(){what}
+      -- idiom for "include the real items list".
+      local qf = vim.fn.getqflist({ nr = "$", items = 0 })
+      if #qf.items == 0 then
+        return -- quickfix list is empty: build succeeded, nothing to signal
+      end
+      require("animfx").emit(event, { count = #qf.items })
+    end,
+  })
+end
+
 return M

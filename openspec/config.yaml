@@ -20,13 +20,14 @@ context: |
   Conventions: effects are `function(data)`; constructors take `opts` and return
   one. Effect execution is pcall-isolated (one failing effect never blocks
   others). Modules: animfx (registry), animfx.effects, animfx.combinators,
-  animfx.remote, animfx.health.
+  animfx.remote, animfx.remote_effects, animfx.health, animfx.sources,
+  animfx.tween.
 
   Testing: headless suite in tests/run.lua via `make test` (nvim -l), no
   plenary; CI on stable + nightly. stylua + luacheck for local dev.
 
   Capabilities map to modules: registry, effects, combinators, introspection,
-  remote, sources.
+  remote, remote_effects, sources, tween.
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.

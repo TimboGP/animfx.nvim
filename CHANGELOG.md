@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `animfx.tween` — a shared progress/setter split for timer-driven
+  animations, computing progress from real elapsed wall-clock time instead of
+  a step counter. `effects.shake` now uses it to drive a continuous, decaying
+  sine jitter instead of a binary on/off toggle.
+- `sources.on_build_failure` — emits an event when a `:make`-style command
+  populates the quickfix list with errors.
+- `remote_effects.hammerspoon_wiggle` — shells out to Hammerspoon's `hs` CLI
+  to wiggle the focused OS window (e.g. on a failed build), via a
+  `hammerspoon-window-mgmt` Spoon method.
+
 ## [0.3.1] - 2026-07-05
 
 ### Added

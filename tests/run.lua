@@ -16,6 +16,7 @@ vim.opt.runtimepath:prepend(vim.fn.getcwd())
 local animfx = require("animfx")
 local effects = require("animfx.effects")
 local c = require("animfx.combinators")
+local tween = require("animfx.tween")
 
 -- Async timing. Waits are condition-based with a generous ceiling, so they
 -- return the instant the condition holds — only the ceiling is loosened, which
@@ -229,6 +230,92 @@ do
     "effects skipped during a macro unless opted in",
     suppressed and opted_in
   )
+end
+
+-- tween ---------------------------------------------------------------------
+do
+  local samples = {}
+  local completed, cancelled_flag
+  local h = tween.run({
+    duration = 0.05,
+    fps = 200,
+    progressFn = function(t)
+      samples[#samples + 1] = t
+      return t
+    end,
+    setterFn = function() end,
+    onComplete = function(cancelled)
+      completed = true
+      cancelled_flag = cancelled
+    end,
+  })
+  vim.wait(WAIT, function()
+    return completed == true
+  end)
+  check(
+    "tween: Elapsed-time progress",
+    "progress reaches 1 and completes naturally",
+    samples[#samples] == 1 and cancelled_flag == false
+  )
+
+  local before = #samples
+  h.cancel()
+  check("tween: Completion fires exactly once", "cancel after natural completion is a no-op", #samples == before)
+end
+
+do
+  local completed, cancelled_flag
+  tween.run({
+    duration = 1,
+    fps = 200,
+    progressFn = function(t)
+      return t
+    end,
+    setterFn = function()
+      return false
+    end,
+    onComplete = function(cancelled)
+      completed = true
+      cancelled_flag = cancelled
+    end,
+  })
+  vim.wait(WAIT, function()
+    return completed == true
+  end)
+  check(
+    "tween: Completion fires exactly once",
+    "setterFn returning false cancels early",
+    completed == true and cancelled_flag == true
+  )
+end
+
+do
+  local h = tween.run({
+    duration = 1,
+    fps = 200,
+    progressFn = function(t)
+      return t
+    end,
+    setterFn = function() end,
+  })
+  check("tween: Cancellation stops the timer", "a fresh tween reports isRunning() == true", h.isRunning() == true)
+  h.cancel()
+  check("tween: Cancellation stops the timer", "isRunning() is false immediately after cancel", h.isRunning() == false)
+end
+
+do
+  -- A long-running tween leaves a live timer; VimLeavePre must cancel it, the
+  -- same as hand-rolled effect timers (both share animfx.tween's tracking).
+  tween.run({
+    duration = 5,
+    progressFn = function(t)
+      return t
+    end,
+    setterFn = function() end,
+  })
+  check("tween: Timers are cancelled on exit", "a running tween registers a live timer", effects._active_timers() >= 1)
+  vim.api.nvim_exec_autocmds("VimLeavePre", {})
+  check("tween: Timers are cancelled on exit", "VimLeavePre cancels the tween's timer", effects._active_timers() == 0)
 end
 
 -- effects -----------------------------------------------------------------
@@ -689,6 +776,38 @@ do
   )
 end
 
+-- remote_effects ------------------------------------------------------------
+do
+  -- Stub vim.fn.jobstart (no real Hammerspoon in CI); mirrors the vim.notify
+  -- reassign-and-restore pattern used for notify_toast's fallback above.
+  local orig = vim.fn.jobstart
+  local captured
+  vim.fn.jobstart = function(cmd, jopts)
+    captured = { cmd = cmd, opts = jopts }
+    return 1
+  end
+  require("animfx.remote_effects").hammerspoon_wiggle()({})
+  vim.fn.jobstart = orig
+  check(
+    "remote_effects: Hammerspoon window wiggle",
+    "hammerspoon_wiggle spawns the hs CLI with the expected argv",
+    captured ~= nil
+      and vim.deep_equal(captured.cmd, { "hs", "-c", "spoon.WindowMgmt:wiggleFocusedWindow()" })
+      and captured.opts.detach == true
+  )
+end
+
+do
+  -- `hs` is not installed on this runner: exercises the real jobstart -1
+  -- return path, confirming it never raises.
+  local ok = pcall(require("animfx.remote_effects").hammerspoon_wiggle(), {})
+  check(
+    "remote_effects: Hammerspoon window wiggle",
+    "calling the effect never raises even when `hs` isn't on PATH",
+    ok == true
+  )
+end
+
 -- sources -----------------------------------------------------------------
 do
   require("animfx.sources").on_yank({ event = "TestYankSrc" })
@@ -767,6 +886,31 @@ do
   -- The real "emits on add" behavior is covered by tests/integration.
   local ok = pcall(require("animfx.sources").on_harpoon, { event = "TestHarpoon" })
   check("sources: Harpoon source", "on_harpoon no-ops when harpoon is absent", ok == true)
+end
+
+do
+  require("animfx.sources").on_build_failure({ event = "TestBuildFailure" })
+  local got, times = nil, 0
+  animfx.on("TestBuildFailure", function(d)
+    got = d
+    times = times + 1
+  end)
+
+  vim.fn.setqflist({}, "r")
+  vim.api.nvim_exec_autocmds("QuickFixCmdPost", { pattern = "make" })
+  check(
+    "sources: Build-failure source",
+    "empty quickfix list after :make does not emit",
+    got == nil and times == 0
+  )
+
+  vim.fn.setqflist({ { filename = "x", lnum = 1, text = "err" } }, "r")
+  vim.api.nvim_exec_autocmds("QuickFixCmdPost", { pattern = "make" })
+  check(
+    "sources: Build-failure source",
+    "non-empty quickfix list after :make emits with the error count",
+    got ~= nil and got.count == 1
+  )
 end
 
 -- Spec-to-test coverage gate ----------------------------------------------

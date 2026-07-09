@@ -203,6 +203,7 @@ sources.on_yank()        -- "Yank"       on TextYankPost     { buf, start_row, .
 sources.on_diagnostic()  -- "Diagnostic" on DiagnosticChanged { buf, count }
 sources.on_search()      -- "Search"     on n / N            { buf, line, col, pattern }
 sources.on_harpoon()     -- "HarpoonAdd" on harpoon add      { buf, value, idx }
+sources.on_build_failure() -- "BuildFailed" on :make-style QuickFixCmdPost { count }
 ```
 
 **Recipe — Harpoon add** (the motivating integration; see
@@ -227,6 +228,17 @@ animfx.on("Yank", fx.range_flash({ hl = "IncSearch", duration = 150 }))
 `on_yank({ event = "Yank" })` fires on every yank with
 `{ buf, start_row, start_col, end_row, end_col }`; `range_flash` with no
 explicit range picks up the `'[` / `']` marks, so the two compose directly.
+
+**Recipe — Hammerspoon wiggle on build failure** (requires macOS, Hammerspoon,
+and `hammerspoon-window-mgmt`'s `spoon.WindowMgmt:wiggleFocusedWindow()`; see
+[`examples/hammerspoon-build-failure.lua`](examples/hammerspoon-build-failure.lua)):
+
+```lua
+require("animfx.sources").on_build_failure()  -- emits "BuildFailed" with { count }
+require("animfx").on("BuildFailed",
+  require("animfx.combinators").debounce(300,
+    require("animfx.remote_effects").hammerspoon_wiggle()))
+```
 
 ## Combinators
 
@@ -316,6 +328,22 @@ For the design of richer window-manager / OS-automation producers (AeroSpace,
 Hammerspoon), see
 [docs/cross-layer-integrations.md](docs/cross-layer-integrations.md) — a concept
 doc, not yet a shipped/tested feature.
+
+## Remote effects (Neovim → Hammerspoon, …)
+
+The reverse direction from the above: `require("animfx.remote_effects")`
+provides effects that shell out to another OS process instead of mutating
+Neovim's own UI — useful for animating something Neovim itself can't reach,
+like the real OS window running a tiled terminal.
+
+```lua
+require("animfx").on("BuildFailed",
+  require("animfx.remote_effects").hammerspoon_wiggle())
+```
+
+`hammerspoon_wiggle(opts)` fires `hs -c "spoon.WindowMgmt:wiggleFocusedWindow()"`
+(fire-and-forget; silently no-ops if Hammerspoon or the `hs` CLI isn't
+present) — see the "Hammerspoon wiggle on build failure" recipe above.
 
 ## Health & tests
 

@@ -13,6 +13,15 @@ function M.check()
       "Install rcarriga/nvim-notify to enable animated toasts."
     )
   end
+
+  if vim.fn.executable("hs") == 1 then
+    vim.health.ok("hs CLI found — remote_effects.hammerspoon_wiggle can reach Hammerspoon")
+  else
+    vim.health.warn(
+      "hs CLI not found — remote_effects.hammerspoon_wiggle will silently no-op",
+      "Install Hammerspoon (and its `hs` CLI) if you use the Hammerspoon-wiggle recipe."
+    )
+  end
 end
 
 return M
